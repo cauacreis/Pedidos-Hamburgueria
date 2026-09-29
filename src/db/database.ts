@@ -1,6 +1,7 @@
 import { SCHEMA_SQL } from './schema';
 import { INITIAL_PRODUCTS } from './productsRepository';
 import { Product } from '../types/database';
+import { getLocalDateString } from '../utils/date';
 
 export interface DatabaseDriver {
   execAsync(sql: string): Promise<void>;
@@ -128,8 +129,9 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
       for (const item of this.orderItems.values()) {
         const order = this.orders.get(item.order_id);
         if (!order) continue;
-        const orderDate = order.created_at ? order.created_at.split('T')[0] : '';
-        if (!targetDate || orderDate === targetDate) {
+        const orderDateLocal = order.created_at ? getLocalDateString(new Date(order.created_at)) : '';
+        const orderDateUtc = order.created_at ? order.created_at.split('T')[0] : '';
+        if (!targetDate || orderDateLocal === targetDate || orderDateUtc === targetDate) {
           const prod = this.products.get(item.product_id);
           result.push({
             ...item,
@@ -170,6 +172,18 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
       return active.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) as unknown as T[];
     }
 
+    if (trimmed.includes('FROM ORDERS') && trimmed.includes('DATE(')) {
+      const targetDate = params[0];
+      const filtered = Array.from(this.orders.values()).filter((order) => {
+        const orderDateLocal = order.created_at ? getLocalDateString(new Date(order.created_at)) : '';
+        const orderDateUtc = order.created_at ? order.created_at.split('T')[0] : '';
+        return !targetDate || orderDateLocal === targetDate || orderDateUtc === targetDate;
+      });
+      return filtered.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ) as unknown as T[];
+    }
+
     if (trimmed.includes('FROM ORDERS')) {
       return Array.from(this.orders.values()).sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -182,12 +196,13 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
   async getFirstAsync<T>(sql: string, params: any[] = []): Promise<T | null> {
     const trimmed = sql.trim().toUpperCase();
 
-    if (trimmed.includes('MAX(DAILY_NUMBER)') && trimmed.includes('DATE(CREATED_AT) = ?')) {
+    if (trimmed.includes('MAX(DAILY_NUMBER)') && trimmed.includes('DATE(CREATED_AT')) {
       const today = params[0];
       let maxNum = 0;
       for (const order of this.orders.values()) {
-        const orderDate = order.created_at ? order.created_at.split('T')[0] : '';
-        if (orderDate === today && order.daily_number > maxNum) {
+        const orderDateLocal = order.created_at ? getLocalDateString(new Date(order.created_at)) : '';
+        const orderDateUtc = order.created_at ? order.created_at.split('T')[0] : '';
+        if ((orderDateLocal === today || orderDateUtc === today) && order.daily_number > maxNum) {
           maxNum = order.daily_number;
         }
       }

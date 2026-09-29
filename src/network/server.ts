@@ -196,11 +196,12 @@ export class PosWebSocketServer {
         // Atualizar no banco SQLite local
         await OrdersRepository.updateOrderStatus(payload.order_id, payload.status);
 
-        // Reencaminhar status atualizado para todas as telas
+        // Reencaminhar status atualizado para todas as telas (já notifica ouvintes locais)
         this.broadcastOrderStatusChanged(payload.order_id, payload.status);
+        return;
       }
 
-      // Notificar ouvintes locais
+      // Notificar ouvintes locais para mensagens gerais
       for (const handler of this.messageHandlers) {
         try {
           handler(parsed);

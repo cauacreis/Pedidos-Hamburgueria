@@ -15,24 +15,29 @@ export function useConnection(role: 'pos' | 'kds' | 'dashboard') {
   const [clientStatus, setClientStatus] = useState<ConnectionStatus>('disconnected');
   const [connectedHost, setConnectedHost] = useState<string | null>(null);
 
+  // Instâncias ativas em estado reativo para propagação limpa aos hooks
+  const [client, setClient] = useState<KdsWebSocketClient | null>(null);
+  const [server, setServer] = useState<PosWebSocketServer | null>(null);
+
   const clientRef = useRef<KdsWebSocketClient | null>(null);
   const serverRef = useRef<PosWebSocketServer | null>(null);
 
-  // Inicialização para Caixa
+  // Inicialização para Caixa (mantém servidor ativo mesmo se alternar temporariamente para o Dashboard)
   useEffect(() => {
-    if (role === 'pos') {
-      const server = PosWebSocketServer.getInstance(APP_CONFIG.WEBSOCKET.DEFAULT_PORT);
-      serverRef.current = server;
+    if (role === 'pos' || role === 'dashboard') {
+      const srv = PosWebSocketServer.getInstance(APP_CONFIG.WEBSOCKET.DEFAULT_PORT);
+      serverRef.current = srv;
+      setServer(srv);
 
       NetworkDiscovery.getLocalIpAddress().then((ip) => {
         setLocalIp(ip);
       });
 
-      server.start().then(() => {
-        setServerStatus(server.getStatus());
+      srv.start().then(() => {
+        setServerStatus(srv.getStatus());
       });
 
-      const unsubCount = server.onClientCountChange((count) => {
+      const unsubCount = srv.onClientCountChange((count) => {
         setConnectedClientsCount(count);
       });
 
@@ -45,22 +50,23 @@ export function useConnection(role: 'pos' | 'kds' | 'dashboard') {
   // Inicialização para Cozinha
   useEffect(() => {
     if (role === 'kds') {
-      const client = new KdsWebSocketClient();
-      clientRef.current = client;
+      const cli = new KdsWebSocketClient();
+      clientRef.current = cli;
+      setClient(cli);
 
-      const unsubStatus = client.onStatusChange((status) => {
+      const unsubStatus = cli.onStatusChange((status) => {
         setClientStatus(status);
         if (status === 'connected') {
-          setConnectedHost(client.getUrl());
+          setConnectedHost(cli.getUrl());
         }
       });
 
       // Tentar reconectar automaticamente com último IP gravado
-      client.connectLastSaved();
+      cli.connectLastSaved();
 
       return () => {
         unsubStatus();
-        client.disconnect();
+        cli.disconnect();
       };
     }
   }, [role]);
@@ -89,7 +95,7 @@ export function useConnection(role: 'pos' | 'kds' | 'dashboard') {
     connectedHost,
     connectToHost,
     disconnectClient,
-    client: clientRef.current,
-    server: serverRef.current,
+    client,
+    server,
   };
 }

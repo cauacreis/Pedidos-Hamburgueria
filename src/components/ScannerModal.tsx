@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { THEME } from '../constants/theme';
@@ -14,6 +14,14 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ visible, onClose, on
   const [permission, requestPermission] = useCameraPermissions();
   const [manualIp, setManualIp] = useState('');
   const [scanned, setScanned] = useState(false);
+
+  // Resetar o estado de leitura sempre que o modal for reaberto
+  useEffect(() => {
+    if (visible) {
+      setScanned(false);
+      setManualIp('');
+    }
+  }, [visible]);
 
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (scanned) return;

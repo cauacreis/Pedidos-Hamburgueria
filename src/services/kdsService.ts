@@ -21,7 +21,7 @@ export class KdsService {
       const items = order.items || [];
 
       for (const item of items) {
-        const pattiesInItem = (item.patty_count ?? 1) * item.quantity;
+        const pattiesInItem = (item.patty_count ?? 0) * item.quantity;
         if (order.status === 'queued') {
           queuedPatties += pattiesInItem;
         } else if (order.status === 'preparing') {
@@ -55,7 +55,7 @@ export class KdsService {
 
     let totalPatties = 0;
     for (const item of order.items || []) {
-      totalPatties += (item.patty_count ?? 1) * item.quantity;
+      totalPatties += (item.patty_count ?? 0) * item.quantity;
     }
 
     return {
@@ -68,29 +68,36 @@ export class KdsService {
   }
 
   /**
-   * Ordena a fila da cozinha priorizando pedidos mais antigos (FIFO)
-   * e mantendo 'queued' e 'preparing' antes de 'ready'
+   * Ordena a fila da cozinha priorizando pedidos mais antigos / maior tempo de espera (FIFO)
+   * mantendo pedidos ativos (queued e preparing) antes de 'ready'
    */
   static sortKdsOrders(orders: Order[]): Order[] {
-    const statusWeight: Record<string, number> = {
+    const statusGroup: Record<string, number> = {
       queued: 1,
-      preparing: 2,
-      ready: 3,
-      delivered: 4,
+      preparing: 1, // Ambos são pedidos ativos da fila de chapa
+      ready: 2,     // Pedido pronto aguardando retirada
+      delivered: 3,
     };
 
     return [...orders].sort((a, b) => {
-      const weightA = statusWeight[a.status] || 99;
-      const weightB = statusWeight[b.status] || 99;
+      const groupA = statusGroup[a.status] || 99;
+      const groupB = statusGroup[b.status] || 99;
 
-      if (weightA !== weightB) {
-        return weightA - weightB;
+      if (groupA !== groupB) {
+        return groupA - groupB;
       }
 
-      // Se mesmo status, o mais antigo vem primeiro (FIFO)
+      // No mesmo grupo, o mais antigo (maior tempo de espera) vem primeiro (FIFO)
       const timeA = new Date(a.created_at).getTime();
       const timeB = new Date(b.created_at).getTime();
-      return timeA - timeB;
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+
+      if (a.status === 'preparing' && b.status === 'queued') return -1;
+      if (a.status === 'queued' && b.status === 'preparing') return 1;
+
+      return 0;
     });
   }
 }

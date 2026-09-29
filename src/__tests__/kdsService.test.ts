@@ -120,11 +120,63 @@ describe('KdsService - Grill Meat Counter & Queue Prioritization', () => {
   it('sorts orders in FIFO order prioritizing older orders in the same status', () => {
     const sorted = KdsService.sortKdsOrders(sampleOrders);
     
-    // ord-1 (queued) should come before ord-2 (preparing) due to status weight
+    // ord-1 (15 min ago) should come before ord-2 (8 min ago)
     // ord-3 (ready) should be after queued/preparing
     expect(sorted[0].id).toBe('ord-1');
     expect(sorted[1].id).toBe('ord-2');
     expect(sorted[2].id).toBe('ord-3');
     expect(sorted[3].id).toBe('ord-4');
+  });
+
+  it('prioritizes older preparing order over a brand-new queued order by wait time', () => {
+    const oldPreparing: Order = {
+      id: 'ord-old-prep',
+      daily_number: 10,
+      customer_name: 'Antigo na Chapa',
+      total: 30,
+      status: 'preparing',
+      created_at: new Date(Date.now() - 25 * 60 * 1000).toISOString(), // 25 min ago
+      synced: true,
+      items: [{ id: 'it-1', order_id: 'ord-old-prep', product_id: 'p1', quantity: 1, patty_count: 1, synced: true }],
+    };
+
+    const newQueued: Order = {
+      id: 'ord-new-queue',
+      daily_number: 11,
+      customer_name: 'Novo na Fila',
+      total: 30,
+      status: 'queued',
+      created_at: new Date(Date.now() - 1 * 60 * 1000).toISOString(), // 1 min ago
+      synced: true,
+      items: [{ id: 'it-2', order_id: 'ord-new-queue', product_id: 'p1', quantity: 1, patty_count: 1, synced: true }],
+    };
+
+    const sorted = KdsService.sortKdsOrders([newQueued, oldPreparing]);
+    // O pedido mais antigo (25 min) DEVE vir antes do novo (1 min)
+    expect(sorted[0].id).toBe('ord-old-prep');
+    expect(sorted[1].id).toBe('ord-new-queue');
+  });
+
+  it('does not increment patty count for items with undefined or zero patty_count', () => {
+    const drinkOrder: Order = {
+      id: 'ord-drink',
+      daily_number: 99,
+      customer_name: 'Apenas Bebidas',
+      total: 14,
+      status: 'queued',
+      created_at: new Date().toISOString(),
+      synced: false,
+      items: [
+        { id: 'd1', order_id: 'ord-drink', product_id: 'prod-coca-cola', quantity: 2, patty_count: 0, synced: false },
+        { id: 'd2', order_id: 'ord-drink', product_id: 'prod-agua', quantity: 1, patty_count: undefined, synced: false },
+      ],
+    };
+
+    const summary = KdsService.calculatePattyCounter([drinkOrder]);
+    expect(summary.totalPendingPatties).toBe(0);
+    expect(summary.queuedPatties).toBe(0);
+
+    const metrics = KdsService.calculateWaitMetrics(drinkOrder);
+    expect(metrics.totalPatties).toBe(0);
   });
 });

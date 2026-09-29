@@ -75,4 +75,17 @@ describe('OrdersRepository - Local SQLite Transactions & Daily Numbers', () => {
     const remainingUnsynced = await OrdersRepository.getUnsyncedOrders();
     expect(remainingUnsynced.some((o) => o.id === order1.id || o.id === order2.id)).toBe(false);
   });
+
+  it('correctly increments daily number sequentially across orders and falls back customer name to Balcão', async () => {
+    const defaultCustOrder = await OrdersRepository.createOrder({
+      customer_name: '   ',
+      items: [{ product_id: 'prod-classic-smash', quantity: 1 }],
+    });
+
+    expect(defaultCustOrder.customer_name).toBe('Balcão');
+    expect(defaultCustOrder.daily_number).toBeGreaterThanOrEqual(1);
+
+    const nextNumber = await OrdersRepository.getNextDailyNumber();
+    expect(nextNumber).toBe(defaultCustOrder.daily_number + 1);
+  });
 });

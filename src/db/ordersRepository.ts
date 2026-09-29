@@ -1,16 +1,17 @@
 import { getDatabase } from './database';
 import { CreateOrderInput, Order, OrderItem, OrderStatus, Product } from '../types/database';
+import { getLocalDateString } from '../utils/date';
 
 export class OrdersRepository {
   /**
-   * Obtém o próximo número diário (#01, #02...) para a data corrente
+   * Obtém o próximo número diário (#01, #02...) para a data corrente local
    */
   static async getNextDailyNumber(): Promise<number> {
     const db = await getDatabase();
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const row = await db.getFirstAsync<{ max_number: number | null }>(
-      `SELECT MAX(daily_number) as max_number FROM orders WHERE DATE(created_at) = ?`,
-      [today]
+      `SELECT MAX(daily_number) as max_number FROM orders WHERE (DATE(created_at, 'localtime') = ? OR DATE(created_at) = ?)`,
+      [today, today]
     );
 
     if (row && typeof row.max_number === 'number' && row.max_number > 0) {

@@ -1,5 +1,6 @@
 import { getDatabase } from '../db/database';
 import { DailySummary } from '../types/database';
+import { getLocalDateString } from '../utils/date';
 
 export class DashboardService {
   /**
@@ -7,12 +8,12 @@ export class DashboardService {
    */
   static async getDailySummary(targetDate?: string): Promise<DailySummary> {
     const db = await getDatabase();
-    const dateStr = targetDate || new Date().toISOString().split('T')[0];
+    const dateStr = targetDate || getLocalDateString();
 
     // Buscar todos os pedidos da data
     const orders = await db.getAllAsync<any>(
-      `SELECT * FROM orders WHERE DATE(created_at) = ?`,
-      [dateStr]
+      `SELECT * FROM orders WHERE (DATE(created_at, 'localtime') = ? OR DATE(created_at) = ?)`,
+      [dateStr, dateStr]
     );
 
     let totalRevenue = 0;
@@ -41,8 +42,8 @@ export class DashboardService {
        FROM order_items oi
        JOIN orders o ON oi.order_id = o.id
        LEFT JOIN products p ON oi.product_id = p.id
-       WHERE DATE(o.created_at) = ?`,
-      [dateStr]
+       WHERE (DATE(o.created_at, 'localtime') = ? OR DATE(o.created_at) = ?)`,
+      [dateStr, dateStr]
     );
 
     let totalBurgersSold = 0;
@@ -55,7 +56,7 @@ export class DashboardService {
 
       if (isBurger) {
         totalBurgersSold += qty;
-        totalPattiesSold += qty * Number(item.patty_count || 1);
+        totalPattiesSold += qty * Number(item.patty_count ?? 0);
       }
 
       const prodId = item.product_id;

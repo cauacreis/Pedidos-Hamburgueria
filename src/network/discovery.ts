@@ -18,36 +18,51 @@ export class NetworkDiscovery {
 
   /**
    * Valida e decodifica o conteúdo lido pelo scanner da Cozinha
+   * Suporta JSON ({"host":"...", "port":8080}), URLs completas (ws://IP:PORT) e IP simples
    */
   static parsePairingPayload(rawContent: string): KdsPairingPayload | null {
     if (!rawContent || typeof rawContent !== 'string') {
       return null;
     }
 
+    const trimmed = rawContent.trim();
+
     try {
-      const parsed = JSON.parse(rawContent.trim());
+      const parsed = JSON.parse(trimmed);
       if (parsed && typeof parsed.host === 'string' && parsed.host.length > 0) {
-        const port = typeof parsed.port === 'number' && parsed.port > 0 ? parsed.port : APP_CONFIG.WEBSOCKET.DEFAULT_PORT;
+        const cleanHost = parsed.host
+          .replace(/^(ws|wss|http|https):\/\//i, '')
+          .replace(/\/.*$/, '')
+          .trim();
+        const port =
+          typeof parsed.port === 'number' && parsed.port > 0
+            ? parsed.port
+            : APP_CONFIG.WEBSOCKET.DEFAULT_PORT;
         return {
-          host: parsed.host.trim(),
+          host: cleanHost,
           port,
-          role: parsed.role === 'kds' ? 'kds' : 'kds',
+          role: 'kds',
           timestamp: parsed.timestamp,
         };
       }
     } catch {
-      // Se não for JSON, pode ser um IP simples inserido diretamente ou lido de QR simples (ex: "192.168.1.100" ou "192.168.1.100:8080")
-      const trimmed = rawContent.trim();
-      const parts = trimmed.split(':');
+      // Se não for JSON, pode ser uma URL completa (ex: "ws://192.168.43.1:8080"),
+      // IP:PORT (ex: "192.168.1.100:8080") ou IP simples (ex: "192.168.1.100")
+      const cleaned = trimmed
+        .replace(/^(ws|wss|http|https):\/\//i, '')
+        .replace(/\/.*$/, '')
+        .trim();
+
+      const parts = cleaned.split(':');
       if (parts.length === 2 && !isNaN(Number(parts[1]))) {
         return {
-          host: parts[0],
+          host: parts[0].trim(),
           port: Number(parts[1]),
           role: 'kds',
         };
-      } else if (parts.length === 1 && trimmed.includes('.')) {
+      } else if (parts.length === 1 && cleaned.includes('.')) {
         return {
-          host: trimmed,
+          host: cleaned,
           port: APP_CONFIG.WEBSOCKET.DEFAULT_PORT,
           role: 'kds',
         };
@@ -58,11 +73,25 @@ export class NetworkDiscovery {
   }
 
   /**
-   * Resolve a URL do WebSocket a partir de host e porta
+   * Resolve a URL do WebSocket a partir de host e porta, evitando portas duplicadas
    */
   static buildWebSocketUrl(host: string, port: number = APP_CONFIG.WEBSOCKET.DEFAULT_PORT): string {
-    const cleanHost = host.replace(/^ws:\/\//, '').replace(/^http:\/\//, '').replace(/\/$/, '');
-    return `ws://${cleanHost}:${port}`;
+    let cleanHost = host
+      .replace(/^(ws|wss|http|https):\/\//i, '')
+      .replace(/\/.*$/, '')
+      .trim();
+    let finalPort = port;
+
+    if (cleanHost.includes(':')) {
+      const [h, p] = cleanHost.split(':');
+      cleanHost = h.trim();
+      const parsedPort = Number(p);
+      if (!isNaN(parsedPort) && parsedPort > 0) {
+        finalPort = parsedPort;
+      }
+    }
+
+    return `ws://${cleanHost}:${finalPort}`;
   }
 
   /**

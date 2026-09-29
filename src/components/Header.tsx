@@ -32,11 +32,22 @@ export const Header: React.FC<HeaderProps> = ({
         <View style={styles.statusSection}>
           {role === 'pos' && (
             <TouchableOpacity
-              style={[styles.connectionBadge, styles.badgeConnected]}
+              style={[
+                styles.connectionBadge,
+                connectedClientsCount > 0 ? styles.badgeConnected : styles.badgeWarning,
+              ]}
               onPress={onOpenConnectModal}
               activeOpacity={0.8}
             >
-              <View style={[styles.statusDot, { backgroundColor: THEME.colors.success }]} />
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor:
+                      connectedClientsCount > 0 ? THEME.colors.success : THEME.colors.warning,
+                  },
+                ]}
+              />
               <Text style={styles.connectionText}>
                 {connectedClientsCount > 0
                   ? `${connectedClientsCount} Cozinha conectada`
@@ -49,7 +60,11 @@ export const Header: React.FC<HeaderProps> = ({
             <TouchableOpacity
               style={[
                 styles.connectionBadge,
-                connectionStatus === 'connected' ? styles.badgeConnected : styles.badgeDisconnected,
+                connectionStatus === 'connected'
+                  ? styles.badgeConnected
+                  : connectionStatus === 'reconnecting' || connectionStatus === 'connecting'
+                  ? styles.badgeWarning
+                  : styles.badgeDisconnected,
               ]}
               onPress={connectionStatus !== 'connected' ? onOpenScannerModal : undefined}
               activeOpacity={0.8}
@@ -59,12 +74,20 @@ export const Header: React.FC<HeaderProps> = ({
                   styles.statusDot,
                   {
                     backgroundColor:
-                      connectionStatus === 'connected' ? THEME.colors.success : THEME.colors.danger,
+                      connectionStatus === 'connected'
+                        ? THEME.colors.success
+                        : connectionStatus === 'reconnecting' || connectionStatus === 'connecting'
+                        ? THEME.colors.warning
+                        : THEME.colors.danger,
                   },
                 ]}
               />
               <Text style={styles.connectionText}>
-                {connectionStatus === 'connected' ? 'Conectado ao Caixa' : 'Desconectado (Escanear)'}
+                {connectionStatus === 'connected'
+                  ? 'Conectado ao Caixa'
+                  : connectionStatus === 'reconnecting' || connectionStatus === 'connecting'
+                  ? 'Reconectando...'
+                  : 'Desconectado (Escanear)'}
               </Text>
             </TouchableOpacity>
           )}
@@ -147,6 +170,10 @@ const styles = StyleSheet.create({
   badgeDisconnected: {
     backgroundColor: THEME.colors.dangerLight,
     borderColor: THEME.colors.danger,
+  },
+  badgeWarning: {
+    backgroundColor: THEME.colors.warningLight,
+    borderColor: THEME.colors.warning,
   },
   statusDot: {
     width: 8,

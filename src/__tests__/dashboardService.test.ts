@@ -46,4 +46,21 @@ describe('DashboardService - Offline Financial Metrics & Sales Insights', () => 
     expect(summary.top_products[0].product_id).toBe('prod-double-cheddar');
     expect(summary.top_products[0].quantity).toBe(2);
   });
+
+  it('does not inflate patties sold when customer buys only beverages and sides', async () => {
+    // Adicionar pedido apenas com bebidas e sobremesas
+    await OrdersRepository.createOrder({
+      customer_name: 'Apenas Bebida e Sobremesa',
+      items: [
+        { product_id: 'prod-coca-cola', quantity: 3 },
+        { product_id: 'prod-brownie', quantity: 2 },
+      ],
+    });
+
+    const summary = await DashboardService.getDailySummary();
+    // Hambúrgueres e carnes continuam os mesmos dos pedidos anteriores (3 burgers, 5 carnes)
+    expect(summary.total_burgers_sold).toBe(3);
+    expect(summary.total_patties_sold).toBe(5);
+    expect(summary.total_orders).toBe(3);
+  });
 });

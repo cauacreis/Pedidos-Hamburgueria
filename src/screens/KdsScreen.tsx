@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { THEME } from '../constants/theme';
 import { Order, OrderStatus } from '../types/database';
@@ -22,6 +22,16 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
 }) => {
   const pattySummary = usePattyCount(orders);
   const isDisconnected = connectionStatus === 'disconnected';
+
+  // Atualização periódica dos minutos de espera e cores de urgência em tempo real
+  const [, setTick] = useState<number>(0);
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setTick((prev) => prev + 1);
+    }, 15000); // 15 segundos
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   if (isDisconnected) {
     return (
