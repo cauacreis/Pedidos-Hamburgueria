@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "BurgerPOS & KDS",
+    "slug": "pedidos-hamburgueria",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0f1115"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.foodtruck.pedidoshamburgueria",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Acesso à câmera necessário para ler o QR Code de conexão do Caixa."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1115"
+      },
+      "package": "com.foodtruck.pedidoshamburgueria",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE",
+        "WAKE_LOCK"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Acesso à câmera necessário para ler o QR Code de conexão do Caixa."
+        }
+      ],
+      "expo-sqlite"
+    ]
+  }
+}
