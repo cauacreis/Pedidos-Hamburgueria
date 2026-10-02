@@ -37,7 +37,17 @@
           "cameraPermission": "Acesso à câmera necessário para ler o QR Code de conexão do Caixa."
         }
       ],
-      "expo-sqlite"
-    ]
+      "expo-sqlite",
+      "expo-asset",
+      "expo-updates"
+    ],
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }

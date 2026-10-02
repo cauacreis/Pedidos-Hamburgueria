@@ -14,6 +14,7 @@ import { ScannerModal } from './src/components/ScannerModal';
 import { useConnection } from './src/hooks/useConnection';
 import { useOrders } from './src/hooks/useOrders';
 import { SupabaseSyncService } from './src/services/syncService';
+import { UpdateService } from './src/services/updateService';
 import { getDatabase } from './src/db/database';
 
 export default function App() {
@@ -24,9 +25,10 @@ export default function App() {
   const [connectModalVisible, setConnectModalVisible] = useState<boolean>(false);
   const [scannerModalVisible, setScannerModalVisible] = useState<boolean>(false);
 
-  // Inicializar sincronização em nuvem e banco de dados
+  // Inicializar sincronização em nuvem, banco de dados e checagem de atualizações OTA
   useEffect(() => {
     getDatabase().catch(() => {});
+    UpdateService.checkAndApplySilentUpdate().catch(() => {});
     const syncService = SupabaseSyncService.getInstance();
     syncService.start();
 
