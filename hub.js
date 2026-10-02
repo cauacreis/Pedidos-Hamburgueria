@@ -35,7 +35,8 @@ wss.on('connection', (ws, req) => {
       if (msg.type === 'NEW_ORDER' && msg.payload) {
         ordersStore.push(msg.payload);
       } else if (msg.type === 'UPDATE_ORDER_STATUS' && msg.payload) {
-        const target = ordersStore.find(o => o.id === msg.payload.orderId);
+        const orderId = msg.payload.order_id || msg.payload.orderId;
+        const target = ordersStore.find(o => o.id === orderId);
         if (target) {
           target.status = msg.payload.status;
         }

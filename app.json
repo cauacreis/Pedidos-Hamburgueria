@@ -27,7 +27,15 @@
         "CAMERA",
         "ACCESS_NETWORK_STATE",
         "ACCESS_WIFI_STATE",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "CAMERA",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE",
+        "WAKE_LOCK",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -44,10 +52,17 @@
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/630854ca-1c70-4e58-a60c-3cc3e4dfbe31"
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "630854ca-1c70-4e58-a60c-3cc3e4dfbe31"
+      }
+    },
+    "owner": "cauac.reis"
   }
 }
