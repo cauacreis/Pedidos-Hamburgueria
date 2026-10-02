@@ -6,12 +6,14 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "hub": "node hub.js",
     "web": "expo start --web",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~4.0.1",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/netinfo": "11.4.1",
     "@supabase/supabase-js": "^2.48.0",
@@ -25,9 +27,11 @@
     "expo-status-bar": "~2.0.0",
     "lucide-react-native": "^0.475.0",
     "react": "18.3.1",
+    "react-dom": "18.3.1",
     "react-native": "0.76.6",
     "react-native-qrcode-svg": "^6.3.14",
     "react-native-svg": "15.8.0",
+    "react-native-web": "~0.19.13",
     "ws": "^8.18.0"
   },
   "devDependencies": {
