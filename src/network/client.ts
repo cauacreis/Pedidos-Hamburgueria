@@ -74,6 +74,20 @@ export class KdsWebSocketClient {
   }
 
   /**
+   * Força uma tentativa imediata de reconexão (ex: ao voltar para o app em primeiro plano)
+   */
+  public reconnectNow(): void {
+    if (this.isExplicitlyClosed) return;
+    this.clearTimers();
+    this.reconnectAttempts = 0;
+    if (this.currentUrl) {
+      this.initiateSocket(this.currentUrl);
+    } else {
+      this.connectLastSaved();
+    }
+  }
+
+  /**
    * Fecha conexão ativamente
    */
   public disconnect(): void {

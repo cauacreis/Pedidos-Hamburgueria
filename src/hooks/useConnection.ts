@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { PosWebSocketServer } from '../network/server';
 import { KdsWebSocketClient } from '../network/client';
 import { ConnectionStatus, ServerStatus } from '../network/types';
@@ -69,6 +70,32 @@ export function useConnection(role: 'pos' | 'kds' | 'dashboard') {
         cli.disconnect();
       };
     }
+  }, [role]);
+
+  // Listener de ciclo de vida do app (Foreground/Background)
+  // Quando o app volta para primeiro plano ('active'), restabelece conexões imediatamente sem esperar timers
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        if (role === 'kds' && clientRef.current) {
+          if (clientRef.current.getStatus() !== 'connected') {
+            clientRef.current.reconnectNow();
+          }
+        } else if (role === 'pos' || role === 'dashboard') {
+          NetworkDiscovery.getLocalIpAddress().then((ip) => {
+            setLocalIp(ip);
+          });
+          if (serverRef.current) {
+            setServerStatus(serverRef.current.getStatus());
+            setConnectedClientsCount(serverRef.current.getConnectedClientsCount());
+          }
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, [role]);
 
   const connectToHost = useCallback(async (hostOrPayload: string) => {

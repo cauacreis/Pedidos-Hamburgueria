@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { Order, OrderStatus, CreateOrderInput } from '../types/database';
 import { OrdersRepository } from '../db/ordersRepository';
 import { PosWebSocketServer } from '../network/server';
@@ -36,6 +37,19 @@ export function useOrders({ role, client, server }: UseOrdersProps) {
 
   useEffect(() => {
     loadOrders();
+  }, [loadOrders]);
+
+  // Recarrega pedidos imediatamente do SQLite quando o usuário volta de outro app ou desbloqueia
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        loadOrders();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, [loadOrders]);
 
   // Listener para eventos de WebSocket
