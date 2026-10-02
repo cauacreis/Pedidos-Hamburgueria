@@ -46,6 +46,33 @@ export interface CreateOrderInput {
   items: CreateOrderItemInput[];
 }
 
+export interface CategoryBreakdown {
+  category: ProductCategory;
+  category_name: string;
+  total_revenue: number;
+  total_quantity: number;
+  percentage_revenue: number;
+}
+
+export interface KitchenSpeedMetrics {
+  avg_prep_time_minutes: number;
+  active_orders_count: {
+    queued: number;
+    preparing: number;
+    ready: number;
+    delivered: number;
+  };
+  patties_per_hour: number;
+}
+
+export interface SmartInsight {
+  id: string;
+  title: string;
+  description: string;
+  type: 'success' | 'warning' | 'info' | 'highlight';
+  icon: string;
+}
+
 export interface DailySummary {
   date: string;
   total_revenue: number;
@@ -53,6 +80,11 @@ export interface DailySummary {
   total_burgers_sold: number;
   total_patties_sold: number;
   average_ticket: number;
+  drink_attach_rate: number;
+  side_attach_rate: number;
+  category_breakdown: CategoryBreakdown[];
+  kitchen_speed: KitchenSpeedMetrics;
+  smart_insights: SmartInsight[];
   peak_hours: { hour: number; order_count: number; revenue: number }[];
   top_products: { product_id: string; product_name: string; quantity: number; total_revenue: number }[];
 }

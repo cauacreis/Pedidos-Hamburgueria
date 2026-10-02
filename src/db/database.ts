@@ -131,7 +131,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
         if (!order) continue;
         const orderDateLocal = order.created_at ? getLocalDateString(new Date(order.created_at)) : '';
         const orderDateUtc = order.created_at ? order.created_at.split('T')[0] : '';
-        if (!targetDate || orderDateLocal === targetDate || orderDateUtc === targetDate) {
+        if (!targetDate || targetDate === 'all' || orderDateLocal === targetDate || orderDateUtc === targetDate) {
           const prod = this.products.get(item.product_id);
           result.push({
             ...item,
@@ -177,7 +177,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
       const filtered = Array.from(this.orders.values()).filter((order) => {
         const orderDateLocal = order.created_at ? getLocalDateString(new Date(order.created_at)) : '';
         const orderDateUtc = order.created_at ? order.created_at.split('T')[0] : '';
-        return !targetDate || orderDateLocal === targetDate || orderDateUtc === targetDate;
+        return !targetDate || targetDate === 'all' || orderDateLocal === targetDate || orderDateUtc === targetDate;
       });
       return filtered.sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()

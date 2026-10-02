@@ -63,4 +63,43 @@ describe('DashboardService - Offline Financial Metrics & Sales Insights', () => 
     expect(summary.total_patties_sold).toBe(5);
     expect(summary.total_orders).toBe(3);
   });
+
+  it('calculates drink attach rate and side attach rate correctly', async () => {
+    // Pedido 1: sem bebida, sem batata
+    // Pedido 2: com batata
+    // Adicionar pedido 3 com bebida:
+    await OrdersRepository.createOrder({
+      customer_name: 'Cliente com Bebida',
+      items: [
+        { product_id: 'prod-coca-cola', quantity: 1 },
+      ],
+    });
+
+    const summary = await DashboardService.getDailySummary();
+    expect(summary.total_orders).toBe(3);
+    // 1 de 3 pedidos tem bebida = 33%
+    expect(summary.drink_attach_rate).toBe(33);
+    // 1 de 3 pedidos tem batata/porção = 33%
+    expect(summary.side_attach_rate).toBe(33);
+  });
+
+  it('provides category breakdown and smart insights', async () => {
+    const summary = await DashboardService.getDailySummary();
+
+    expect(summary.category_breakdown.length).toBeGreaterThan(0);
+    const burgerCat = summary.category_breakdown.find((c) => c.category === 'burger');
+    expect(burgerCat).toBeDefined();
+    expect(burgerCat?.total_quantity).toBe(3);
+
+    expect(summary.smart_insights.length).toBeGreaterThan(0);
+    expect(summary.kitchen_speed).toBeDefined();
+    expect(summary.kitchen_speed.active_orders_count.queued).toBeGreaterThanOrEqual(0);
+  });
+
+  it('retrieves global history when targetDate is all', async () => {
+    const summary = await DashboardService.getDailySummary('all');
+    expect(summary.date).toBe('all');
+    expect(summary.total_orders).toBe(2);
+    expect(summary.total_revenue).toBe(118.0);
+  });
 });
