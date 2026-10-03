@@ -1,12 +1,52 @@
 const WebSocket = require('ws');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
 const PORT = 8080;
-const wss = new WebSocket.Server({ port: PORT }, () => {
-  console.log(`\n======================================================`);
-  console.log(`🍔 BURGER POS & KDS - SERVIDOR LOCAL ATIVO NA PORTA ${PORT}`);
-  console.log(`======================================================\n`);
+const DIST_DIR = path.join(__dirname, 'dist');
+
+const server = http.createServer((req, res) => {
+  let reqPath = req.url.split('?')[0];
+  let filePath = path.join(DIST_DIR, reqPath === '/' ? 'index.html' : reqPath);
+
+  // Fallback to index.html for SPA if file doesn't exist
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    filePath = path.join(DIST_DIR, 'index.html');
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  const mimeTypes = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.wasm': 'application/wasm',
+  };
+
+  const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+  fs.readFile(filePath, (err, content) => {
+    if (err) {
+      res.writeHead(404);
+      res.end('Not Found');
+    } else {
+      res.writeHead(200, { 'Content-Type': contentType });
+      res.end(content);
+    }
+  });
 });
+
+const wss = new WebSocket.Server({ server });
+
+console.log(`\n======================================================`);
+console.log(`🍔 BURGER POS & KDS - SERVIDOR LOCAL & WEB ATIVO NA PORTA ${PORT}`);
+console.log(`📡 Acesse no navegador: http://localhost:${PORT}`);
+console.log(`======================================================\n`);
 
 const clients = new Set();
 let ordersStore = [];
@@ -62,4 +102,8 @@ wss.on('connection', (ws, req) => {
     clients.delete(ws);
     console.error('[-] Erro no socket cliente:', err.message);
   });
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[HTTP/WS] Ouvindo em 0.0.0.0:${PORT}`);
 });

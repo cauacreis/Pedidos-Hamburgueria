@@ -17,6 +17,12 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
   private orders: Map<string, any> = new Map();
   private orderItems: Map<string, any> = new Map();
 
+  constructor() {
+    for (const p of INITIAL_PRODUCTS) {
+      this.products.set(p.id, { ...p });
+    }
+  }
+
   async execAsync(sql: string): Promise<void> {
     // Schema creation is a no-op in-memory
   }
@@ -24,13 +30,13 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
   async runAsync(sql: string, params: any[] = []): Promise<{ lastInsertRowId: number; changes: number }> {
     const trimmed = sql.trim().toUpperCase();
 
-    if (trimmed.startsWith('INSERT INTO PRODUCTS')) {
+    if (trimmed.includes('INTO PRODUCTS')) {
       const [id, name, price, patty_count, category, description] = params;
       this.products.set(id, { id, name, price, patty_count, category, description });
       return { lastInsertRowId: this.products.size, changes: 1 };
     }
 
-    if (trimmed.startsWith('INSERT INTO ORDERS')) {
+    if (trimmed.includes('INTO ORDERS')) {
       const [id, daily_number, customer_name, total, status, created_at, synced] = params;
       this.orders.set(id, {
         id,

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { SocketMessage, NewOrderMessage, OrderStatusChangedMessage, InitialSyncMessage, UpdateOrderStatusMessage } from '../types/events';
 import { Order, OrderStatus } from '../types/database';
 import { OrdersRepository } from '../db/ordersRepository';
@@ -10,6 +11,7 @@ type ClientCountHandler = (count: number) => void;
 export class PosWebSocketServer {
   private static instance: PosWebSocketServer | null = null;
   private server: any = null;
+  private webSocketClient: any = null;
   private clients: Set<any> = new Set();
   private status: ServerStatus = 'idle';
   private port: number;
@@ -45,6 +47,37 @@ export class PosWebSocketServer {
     }
 
     this.status = 'starting';
+
+    // No navegador Web, conecta como cliente do hub WebSocket local
+    if (Platform.OS === 'web' || typeof window !== 'undefined') {
+      try {
+        const host =
+          typeof window !== 'undefined' && window.location && window.location.host
+            ? window.location.host
+            : `localhost:${this.port}`;
+        const ws = new WebSocket(`ws://${host}`);
+        this.webSocketClient = ws;
+
+        ws.onopen = () => {
+          this.status = 'running';
+          this.notifyClientCount();
+        };
+
+        ws.onmessage = (event) => {
+          this.handleClientMessage(ws, event.data);
+        };
+
+        ws.onclose = () => {
+          this.webSocketClient = null;
+        };
+
+        this.status = 'running';
+        return true;
+      } catch (err) {
+        this.status = 'running';
+        return true;
+      }
+    }
 
     try {
       // Tentar inicializar servidor WS nativo/Node
@@ -115,6 +148,12 @@ export class PosWebSocketServer {
       } catch {}
       this.server = null;
     }
+    if (this.webSocketClient) {
+      try {
+        this.webSocketClient.close();
+      } catch {}
+      this.webSocketClient = null;
+    }
     this.clients.clear();
     this.status = 'stopped';
     this.notifyClientCount();
@@ -160,6 +199,12 @@ export class PosWebSocketServer {
         if (client.readyState === 1 /* OPEN */) {
           client.send(serialized);
         }
+      } catch {}
+    }
+
+    if (this.webSocketClient && this.webSocketClient.readyState === 1 /* OPEN */) {
+      try {
+        this.webSocketClient.send(serialized);
       } catch {}
     }
 
