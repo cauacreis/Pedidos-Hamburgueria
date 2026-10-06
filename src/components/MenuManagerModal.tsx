@@ -313,6 +313,7 @@ export const MenuManagerModal: React.FC<MenuManagerModalProps> = ({
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={{ maxHeight: 52 }}
               contentContainerStyle={styles.filterScroll}
             >
               <TouchableOpacity
@@ -503,8 +504,9 @@ const styles = StyleSheet.create({
   },
   filterScroll: {
     paddingHorizontal: THEME.spacing.lg,
-    paddingVertical: 10,
+    paddingVertical: 8,
     gap: 8,
+    alignItems: 'center',
   },
   filterPill: {
     paddingHorizontal: 14,
@@ -513,6 +515,10 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: THEME.colors.surfaceBorder,
+    alignSelf: 'center',
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterPillActive: {
     backgroundColor: THEME.colors.primary,
