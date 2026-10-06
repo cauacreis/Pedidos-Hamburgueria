@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   comboBanner: {
-    backgroundColor: '#FF6B0018',
+    backgroundColor: THEME.colors.primaryLight,
     borderColor: THEME.colors.primary,
     borderWidth: 1,
     borderRadius: THEME.borderRadius.md,

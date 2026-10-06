@@ -1,37 +1,43 @@
 export const THEME = {
   colors: {
-    background: '#0B0D11',
-    surface: '#14171F',
-    surfaceElevated: '#1C202B',
-    surfaceBorder: '#272C3B',
-    surfaceHighlight: '#32384A',
+    // Warm Bodega Street-Food Dark Theme
+    background: '#141211',       // Carvão profundo e quente (fundo geral)
+    surface: '#1D1918',          // Base dos cards e barras
+    surfaceElevated: '#272221',  // Elementos elevados e campos de texto
+    surfaceBorder: '#3D3533',    // Bordas sutis com temperatura quente
+    surfaceHighlight: '#4A413E', // Destaques sutis / hovers
     
-    // Brand / Ember Accents
-    primary: '#FF6B00',       // Searing flame orange
-    primaryHover: '#E05D00',
-    primaryLight: 'rgba(255, 107, 0, 0.15)',
-    primaryGlow: 'rgba(255, 107, 0, 0.35)',
+    // Identidade Bodega do Vidigal (Tons da Logo)
+    primary: '#BE3827',          // Vermelho clássico do anel e marca Bodega
+    primaryHover: '#A82F1F',
+    primaryLight: 'rgba(190, 56, 39, 0.15)',
+    primaryGlow: 'rgba(190, 56, 39, 0.35)',
     
-    // Status
-    success: '#10B981',       // Emerald (Ready / Connected)
-    successLight: 'rgba(16, 185, 129, 0.15)',
-    warning: '#F59E0B',       // Amber (Preparing / Warning wait)
-    warningLight: 'rgba(245, 158, 11, 0.15)',
-    danger: '#EF4444',        // Red (Urgent / Disconnected)
-    dangerLight: 'rgba(239, 68, 68, 0.15)',
-    info: '#3B82F6',
+    // Verde Oliva (Inspirado no chapéu com "VIDIGAL")
+    secondary: '#7E934E',        // Verde oliva do chapéu
+    secondaryHover: '#6E8340',
+    secondaryLight: 'rgba(126, 147, 78, 0.18)',
     
-    // Typography
-    textPrimary: '#F9FAFB',
-    textSecondary: '#9CA3AF',
-    textMuted: '#6B7280',
-    textInverse: '#0B0D11',
+    // Status e Indicadores Operacionais
+    success: '#729443',          // Verde oliva (Pronto / Conectado)
+    successLight: 'rgba(114, 148, 67, 0.18)',
+    warning: '#E58E26',          // Âmbar artesanal (Em preparo / Atenção)
+    warningLight: 'rgba(229, 142, 38, 0.18)',
+    danger: '#D32F2F',           // Vermelho alerta (Urgente / Desconectado)
+    dangerLight: 'rgba(211, 47, 47, 0.18)',
+    info: '#4A90E2',
     
-    // Grill & Patty Counter specific
-    grillAmber: '#F97316',
-    grillEmber: '#EA580C',
-    grillBackground: '#1E1510',
-    grillBorder: '#5E280E',
+    // Tipografia de Alto Contraste
+    textPrimary: '#FAF8F5',      // Creme claro suave (alta legibilidade)
+    textSecondary: '#A89F9A',    // Tom de pedra quente
+    textMuted: '#756C67',        // Texto auxiliar discreto
+    textInverse: '#141211',      // Para fundos claros
+    
+    // Controle de Chapa & Braseiro (Harmonizado com a paleta)
+    grillAmber: '#BE3827',
+    grillEmber: '#8E2519',
+    grillBackground: '#201514',
+    grillBorder: '#54201A',
   },
   spacing: {
     xs: 4,

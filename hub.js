@@ -44,7 +44,7 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocket.Server({ server });
 
 console.log(`\n======================================================`);
-console.log(`🍔 BURGER POS & KDS - SERVIDOR LOCAL & WEB ATIVO NA PORTA ${PORT}`);
+console.log(`🍔 BODEGA DO VIDIGAL - POS & KDS LOCAL NA PORTA ${PORT}`);
 console.log(`📡 Acesse no navegador: http://localhost:${PORT}`);
 console.log(`======================================================\n`);
 

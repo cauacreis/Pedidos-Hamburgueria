@@ -44,8 +44,13 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
             <QRCode
               value={qrPayload}
               size={210}
-              color="#0B0D11"
+              color={THEME.colors.background}
               backgroundColor="#FFFFFF"
+              logo={require('../../assets/logo_icon.png')}
+              logoSize={44}
+              logoBackgroundColor="#FFFFFF"
+              logoMargin={2}
+              logoBorderRadius={22}
             />
           </View>
 

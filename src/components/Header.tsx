@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { THEME } from '../constants/theme';
 import { ConnectionStatus } from '../network/types';
 
@@ -24,8 +24,15 @@ export const Header: React.FC<HeaderProps> = ({
     <View style={styles.container}>
       <View style={styles.topRow}>
         <View style={styles.brandContainer}>
-          <Text style={styles.brandTitle}>BURGER POS</Text>
-          <Text style={styles.brandSubtitle}>Food Truck Local-First</Text>
+          <Image
+            source={require('../../assets/logo_icon.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+          <View style={styles.brandTextCol}>
+            <Text style={styles.brandTitle}>BODEGA DO VIDIGAL</Text>
+            <Text style={styles.brandSubtitle}>Hamburgueria Artesanal</Text>
+          </View>
         </View>
 
         {/* Indicador de Conexão */}
@@ -137,19 +144,33 @@ const styles = StyleSheet.create({
     marginBottom: THEME.spacing.md,
   },
   brandContainer: {
-    flexDirection: 'column',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  logoImage: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: THEME.colors.primary,
+  },
+  brandTextCol: {
+    justifyContent: 'center',
   },
   brandTitle: {
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: '900',
-    letterSpacing: 1.2,
-    color: THEME.colors.primary,
+    letterSpacing: 0.8,
+    color: THEME.colors.textPrimary,
   },
   brandSubtitle: {
-    fontSize: 11,
-    color: THEME.colors.textMuted,
-    fontWeight: '600',
-    marginTop: -2,
+    fontSize: 10,
+    color: THEME.colors.secondary,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginTop: 1,
   },
   statusSection: {
     flexDirection: 'row',

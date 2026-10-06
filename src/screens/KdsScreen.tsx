@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { THEME } from '../constants/theme';
 import { Order, OrderStatus } from '../types/database';
 import { ConnectionStatus } from '../network/types';
@@ -37,11 +37,13 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
     return (
       <View style={styles.disconnectedContainer}>
         <View style={styles.disconnectedBox}>
-          <View style={styles.disconnectIconCircle}>
-            <Text style={styles.disconnectIconText}>📡</Text>
-          </View>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.disconnectedLogo}
+            resizeMode="contain"
+          />
 
-          <Text style={styles.disconnectedTitle}>Cozinha Desconectada</Text>
+          <Text style={styles.disconnectedTitle}>Cozinha da Bodega</Text>
           <Text style={styles.disconnectedSubtitle}>
             Conecte ao aparelho do Caixa para receber pedidos e acompanhar a fila de preparo em tempo real.
           </Text>
@@ -103,17 +105,10 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     width: '100%',
   },
-  disconnectIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: THEME.colors.surfaceElevated,
-    justifyContent: 'center',
-    alignItems: 'center',
+  disconnectedLogo: {
+    width: 100,
+    height: 100,
     marginBottom: 16,
-  },
-  disconnectIconText: {
-    fontSize: 28,
   },
   disconnectedTitle: {
     fontSize: 20,

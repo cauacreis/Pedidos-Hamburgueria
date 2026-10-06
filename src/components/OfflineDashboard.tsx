@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
   },
   periodTabTextActive: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontWeight: '800',
   },
   pulseCard: {
