@@ -6,6 +6,7 @@ import { Product, ProductCategory } from '../types/database';
 interface QuickMenuPickerProps {
   products: Product[];
   onSelectProduct: (product: Product) => void;
+  onOpenMenuManager?: () => void;
 }
 
 const CATEGORIES: { key: ProductCategory | 'all'; label: string }[] = [
@@ -16,7 +17,11 @@ const CATEGORIES: { key: ProductCategory | 'all'; label: string }[] = [
   { key: 'drink', label: 'Bebidas' },
 ];
 
-export const QuickMenuPicker: React.FC<QuickMenuPickerProps> = ({ products, onSelectProduct }) => {
+export const QuickMenuPicker: React.FC<QuickMenuPickerProps> = ({
+  products,
+  onSelectProduct,
+  onOpenMenuManager,
+}) => {
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all'>('all');
 
   const filteredProducts = products.filter((p) => {
@@ -26,6 +31,20 @@ export const QuickMenuPicker: React.FC<QuickMenuPickerProps> = ({ products, onSe
 
   return (
     <View style={styles.container}>
+      {/* Barra Superior do Cardápio */}
+      <View style={styles.topHeader}>
+        <Text style={styles.menuTitle}>Cardápio ({products.length} itens)</Text>
+        {onOpenMenuManager && (
+          <TouchableOpacity
+            style={styles.manageBtn}
+            onPress={onOpenMenuManager}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.manageBtnText}>✏️ Editar Cardápio</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Barra de Categorias */}
       <ScrollView
         horizontal
@@ -92,6 +111,32 @@ export const QuickMenuPicker: React.FC<QuickMenuPickerProps> = ({ products, onSe
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  topHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: THEME.spacing.lg,
+    paddingTop: THEME.spacing.sm,
+    paddingBottom: 4,
+  },
+  menuTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: THEME.colors.textPrimary,
+  },
+  manageBtn: {
+    backgroundColor: THEME.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: THEME.colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: THEME.borderRadius.sm,
+  },
+  manageBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: THEME.colors.primary,
   },
   categoryScroll: {
     paddingHorizontal: THEME.spacing.lg,

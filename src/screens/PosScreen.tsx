@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { THEME } from '../constants/theme';
 import { Product, Order } from '../types/database';
-import { INITIAL_PRODUCTS } from '../db/productsRepository';
+import { INITIAL_PRODUCTS, ProductsRepository } from '../db/productsRepository';
 import { getDatabase } from '../db/database';
 import { QuickMenuPicker } from '../components/QuickMenuPicker';
 import { CartDrawer, CartItem } from '../components/CartDrawer';
 import { OrderCard } from '../components/OrderCard';
+import { MenuManagerModal } from '../components/MenuManagerModal';
 
 interface PosScreenProps {
   orders: Order[];
@@ -28,15 +29,21 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const [customerName, setCustomerName] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'menu' | 'active_orders'>('menu');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isMenuManagerVisible, setIsMenuManagerVisible] = useState<boolean>(false);
 
-  useEffect(() => {
-    // Carregar produtos do SQLite
-    getDatabase().then(async (db) => {
-      const prods = await db.getAllAsync<Product>('SELECT * FROM products');
+  const loadProducts = async () => {
+    try {
+      const prods = await ProductsRepository.getAllProducts();
       if (prods && prods.length > 0) {
         setProducts(prods);
       }
-    });
+    } catch {
+      // Falha silenciosa
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
   }, []);
 
   const handleSelectProduct = (product: Product) => {
@@ -166,7 +173,11 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       {activeTab === 'menu' ? (
         <View style={styles.menuContainer}>
           <ScrollView style={styles.pickerScroll}>
-            <QuickMenuPicker products={products} onSelectProduct={handleSelectProduct} />
+            <QuickMenuPicker
+              products={products}
+              onSelectProduct={handleSelectProduct}
+              onOpenMenuManager={() => setIsMenuManagerVisible(true)}
+            />
           </ScrollView>
 
           {/* Carrinho / Gaveta de Pedido */}
@@ -200,6 +211,14 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           )}
         </ScrollView>
       )}
+
+      {/* Modal de Gerenciamento do Cardápio */}
+      <MenuManagerModal
+        visible={isMenuManagerVisible}
+        onClose={() => setIsMenuManagerVisible(false)}
+        products={products}
+        onProductsUpdated={loadProducts}
+      />
     </View>
   );
 };

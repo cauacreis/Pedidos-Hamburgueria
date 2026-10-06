@@ -105,6 +105,16 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
     }
 
     if (trimmed.startsWith('DELETE FROM PRODUCTS')) {
+      if (trimmed === 'DELETE FROM PRODUCTS') {
+        const count = this.products.size;
+        this.products.clear();
+        return { lastInsertRowId: 0, changes: count };
+      }
+      if (trimmed.includes('WHERE ID = ?') || trimmed.includes('WHERE ID=')) {
+        const targetId = params[0];
+        const deleted = this.products.delete(targetId);
+        return { lastInsertRowId: 0, changes: deleted ? 1 : 0 };
+      }
       const validIds = new Set(INITIAL_PRODUCTS.map((p) => p.id));
       let count = 0;
       for (const id of Array.from(this.products.keys())) {
@@ -130,6 +140,10 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
     const trimmed = sql.trim().toUpperCase();
 
     if (trimmed.includes('FROM PRODUCTS')) {
+      if (trimmed.includes('WHERE ID = ?')) {
+        const prod = this.products.get(params[0]);
+        return (prod ? [prod] : []) as unknown as T[];
+      }
       return Array.from(this.products.values()) as unknown as T[];
     }
 
@@ -301,23 +315,22 @@ export async function initializeDatabase(driver: DatabaseDriver): Promise<void> 
   await driver.execAsync(SCHEMA_SQL.createOrderItemsTable);
   await driver.execAsync(SCHEMA_SQL.createIndexes);
 
-  // Sincronizar produtos do cardápio oficial (inserir ou atualizar)
-  for (const product of INITIAL_PRODUCTS) {
-    await driver.runAsync(
-      `INSERT OR REPLACE INTO products (id, name, price, patty_count, category, description)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        product.id,
-        product.name,
-        product.price,
-        product.patty_count,
-        product.category,
-        product.description || '',
-      ]
-    );
+  // Inicializar produtos com o cardápio padrão apenas se a tabela estiver vazia
+  const existingProducts = await driver.getAllAsync<Product>('SELECT id FROM products LIMIT 1');
+  if (!existingProducts || existingProducts.length === 0) {
+    for (const product of INITIAL_PRODUCTS) {
+      await driver.runAsync(
+        `INSERT OR REPLACE INTO products (id, name, price, patty_count, category, description)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          product.id,
+          product.name,
+          product.price,
+          product.patty_count,
+          product.category,
+          product.description || '',
+        ]
+      );
+    }
   }
-
-  // Remover produtos legados fora do cardápio oficial
-  const validIds = INITIAL_PRODUCTS.map((p) => `'${p.id}'`).join(',');
-  await driver.runAsync(`DELETE FROM products WHERE id NOT IN (${validIds})`);
 }
