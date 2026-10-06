@@ -18,8 +18,63 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
   private orderItems: Map<string, any> = new Map();
 
   constructor() {
-    for (const p of INITIAL_PRODUCTS) {
-      this.products.set(p.id, { ...p });
+    this.restoreFromStorage();
+  }
+
+  private restoreFromStorage() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const storedProds = window.localStorage.getItem('bodega_products_store');
+        if (storedProds) {
+          const parsed = JSON.parse(storedProds);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            this.products = new Map(parsed);
+          }
+        }
+        const storedOrders = window.localStorage.getItem('bodega_orders_store');
+        if (storedOrders) {
+          const parsedOrders = JSON.parse(storedOrders);
+          if (Array.isArray(parsedOrders)) {
+            this.orders = new Map(parsedOrders);
+          }
+        }
+        const storedItems = window.localStorage.getItem('bodega_items_store');
+        if (storedItems) {
+          const parsedItems = JSON.parse(storedItems);
+          if (Array.isArray(parsedItems)) {
+            this.orderItems = new Map(parsedItems);
+          }
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    if (this.products.size === 0) {
+      for (const p of INITIAL_PRODUCTS) {
+        this.products.set(p.id, { ...p });
+      }
+    }
+  }
+
+  private saveToStorage() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(
+          'bodega_products_store',
+          JSON.stringify(Array.from(this.products.entries()))
+        );
+        window.localStorage.setItem(
+          'bodega_orders_store',
+          JSON.stringify(Array.from(this.orders.entries()))
+        );
+        window.localStorage.setItem(
+          'bodega_items_store',
+          JSON.stringify(Array.from(this.orderItems.entries()))
+        );
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -33,6 +88,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
     if (trimmed.includes('INTO PRODUCTS')) {
       const [id, name, price, patty_count, category, description] = params;
       this.products.set(id, { id, name, price, patty_count, category, description });
+      this.saveToStorage();
       return { lastInsertRowId: this.products.size, changes: 1 };
     }
 
@@ -47,6 +103,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
         created_at,
         synced: synced ?? 0,
       });
+      this.saveToStorage();
       return { lastInsertRowId: this.orders.size, changes: 1 };
     }
 
@@ -60,6 +117,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
         notes,
         synced: synced ?? 0,
       });
+      this.saveToStorage();
       return { lastInsertRowId: this.orderItems.size, changes: 1 };
     }
 
@@ -69,6 +127,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
       if (order) {
         order.status = status;
         this.orders.set(id, order);
+        this.saveToStorage();
         return { lastInsertRowId: 0, changes: 1 };
       }
       return { lastInsertRowId: 0, changes: 0 };
@@ -79,6 +138,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
         const order = this.orders.get(params[0]);
         if (order) {
           order.synced = 1;
+          this.saveToStorage();
           return { lastInsertRowId: 0, changes: 1 };
         }
       } else {
@@ -89,6 +149,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
             count++;
           }
         }
+        this.saveToStorage();
         return { lastInsertRowId: 0, changes: count };
       }
     }
@@ -101,6 +162,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
           count++;
         }
       }
+      this.saveToStorage();
       return { lastInsertRowId: 0, changes: count };
     }
 
@@ -108,11 +170,13 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
       if (trimmed === 'DELETE FROM PRODUCTS') {
         const count = this.products.size;
         this.products.clear();
+        this.saveToStorage();
         return { lastInsertRowId: 0, changes: count };
       }
       if (trimmed.includes('WHERE ID = ?') || trimmed.includes('WHERE ID=')) {
         const targetId = params[0];
         const deleted = this.products.delete(targetId);
+        this.saveToStorage();
         return { lastInsertRowId: 0, changes: deleted ? 1 : 0 };
       }
       const validIds = new Set(INITIAL_PRODUCTS.map((p) => p.id));
@@ -123,6 +187,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
           count++;
         }
       }
+      this.saveToStorage();
       return { lastInsertRowId: 0, changes: count };
     }
 
