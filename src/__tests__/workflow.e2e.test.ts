@@ -18,17 +18,17 @@ describe('Food Truck End-to-End Workflow Integration Test', () => {
 
   it('runs complete lifecycle: ordering -> grill meat counting -> status transitions -> dashboard insights -> outbox sync', async () => {
     // 1. Início de turno: Caixa cria Pedido #01 (Carlos)
-    // 1x Double Cheddar (2 carnes, R$ 36) + 1x Monster Triple (3 carnes, R$ 44)
+    // 1x Burger 2 carnes (2 carnes, R$ 24) + 1x Duas carnes e bacon (2 carnes, R$ 27)
     const order1 = await OrdersRepository.createOrder({
       customer_name: 'Carlos',
       items: [
-        { product_id: 'prod-double-cheddar', quantity: 1, notes: 'Ao ponto' },
-        { product_id: 'prod-monster-triple', quantity: 1, notes: 'Bem passado' },
+        { product_id: 'prod-burger-2-carnes', quantity: 1, notes: 'Ao ponto' },
+        { product_id: 'prod-burger-2-carnes-bacon', quantity: 1, notes: 'Bem passado' },
       ],
     });
 
     expect(order1.daily_number).toBe(1);
-    expect(order1.total).toBe(80.0);
+    expect(order1.total).toBe(51.0);
     expect(order1.status).toBe('queued');
     expect(order1.synced).toBe(false);
 
@@ -36,9 +36,9 @@ describe('Food Truck End-to-End Workflow Integration Test', () => {
     let kitchenOrders: Order[] = [order1];
     let pattyMetrics = KdsService.calculatePattyCounter(kitchenOrders);
 
-    // Chapa deve indicar 5 carnes a grelhar (2 + 3)
-    expect(pattyMetrics.totalPendingPatties).toBe(5);
-    expect(pattyMetrics.queuedPatties).toBe(5);
+    // Chapa deve indicar 4 carnes a grelhar (2 + 2)
+    expect(pattyMetrics.totalPendingPatties).toBe(4);
+    expect(pattyMetrics.queuedPatties).toBe(4);
     expect(pattyMetrics.preparingPatties).toBe(0);
 
     // 3. Cozinha inicia o preparo (status -> 'preparing')
@@ -46,9 +46,9 @@ describe('Food Truck End-to-End Workflow Integration Test', () => {
     kitchenOrders = kitchenOrders.map((o) => (o.id === order1.id ? { ...o, status: 'preparing' } : o));
 
     pattyMetrics = KdsService.calculatePattyCounter(kitchenOrders);
-    expect(pattyMetrics.totalPendingPatties).toBe(5);
+    expect(pattyMetrics.totalPendingPatties).toBe(4);
     expect(pattyMetrics.queuedPatties).toBe(0);
-    expect(pattyMetrics.preparingPatties).toBe(5);
+    expect(pattyMetrics.preparingPatties).toBe(4);
 
     // 4. Cozinha finaliza e marca como pronto (status -> 'ready')
     await OrdersRepository.updateOrderStatus(order1.id, 'ready');
@@ -59,14 +59,14 @@ describe('Food Truck End-to-End Workflow Integration Test', () => {
     expect(pattyMetrics.totalPendingPatties).toBe(0);
 
     // 5. Novo cliente no Caixa: Pedido #02 (Ana)
-    // 2x Classic Smash (2 carnes, 2x 28 = 56)
+    // 2x Hambúrguer 1 carne (2 carnes, 2x 18 = 36)
     const order2 = await OrdersRepository.createOrder({
       customer_name: 'Ana',
-      items: [{ product_id: 'prod-classic-smash', quantity: 2, notes: 'Sem picles' }],
+      items: [{ product_id: 'prod-burger-1-carne', quantity: 2, notes: 'Sem salada' }],
     });
 
     expect(order2.daily_number).toBe(2);
-    expect(order2.total).toBe(56.0);
+    expect(order2.total).toBe(36.0);
 
     // Fila da cozinha com ambos
     kitchenOrders.push(order2);
@@ -78,10 +78,10 @@ describe('Food Truck End-to-End Workflow Integration Test', () => {
     // 6. Verificação do Dashboard de Faturamento 100% Offline
     const dailySummary = await DashboardService.getDailySummary();
     expect(dailySummary.total_orders).toBe(2);
-    expect(dailySummary.total_revenue).toBe(136.0); // 80 + 56
-    expect(dailySummary.average_ticket).toBe(68.0); // 136 / 2
+    expect(dailySummary.total_revenue).toBe(87.0); // 51 + 36
+    expect(dailySummary.average_ticket).toBe(43.5); // 87 / 2
     expect(dailySummary.total_burgers_sold).toBe(4); // 1 + 1 + 2
-    expect(dailySummary.total_patties_sold).toBe(7); // 2 + 3 + 2
+    expect(dailySummary.total_patties_sold).toBe(6); // 2 + 2 + 2
 
     // 7. Caixa entrega o pedido #01 ao cliente (status -> 'delivered')
     await OrdersRepository.updateOrderStatus(order1.id, 'delivered');

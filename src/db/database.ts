@@ -104,6 +104,18 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
       return { lastInsertRowId: 0, changes: count };
     }
 
+    if (trimmed.startsWith('DELETE FROM PRODUCTS')) {
+      const validIds = new Set(INITIAL_PRODUCTS.map((p) => p.id));
+      let count = 0;
+      for (const id of Array.from(this.products.keys())) {
+        if (!validIds.has(id)) {
+          this.products.delete(id);
+          count++;
+        }
+      }
+      return { lastInsertRowId: 0, changes: count };
+    }
+
     if (trimmed.startsWith('DELETE FROM ORDERS')) {
       const count = this.orders.size;
       this.orders.clear();
@@ -289,22 +301,23 @@ export async function initializeDatabase(driver: DatabaseDriver): Promise<void> 
   await driver.execAsync(SCHEMA_SQL.createOrderItemsTable);
   await driver.execAsync(SCHEMA_SQL.createIndexes);
 
-  // Seed produtos se vazios
-  const existingProducts = await driver.getAllAsync<Product>('SELECT id FROM products LIMIT 1');
-  if (!existingProducts || existingProducts.length === 0) {
-    for (const product of INITIAL_PRODUCTS) {
-      await driver.runAsync(
-        `INSERT OR IGNORE INTO products (id, name, price, patty_count, category, description)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          product.id,
-          product.name,
-          product.price,
-          product.patty_count,
-          product.category,
-          product.description || '',
-        ]
-      );
-    }
+  // Sincronizar produtos do cardápio oficial (inserir ou atualizar)
+  for (const product of INITIAL_PRODUCTS) {
+    await driver.runAsync(
+      `INSERT OR REPLACE INTO products (id, name, price, patty_count, category, description)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        product.id,
+        product.name,
+        product.price,
+        product.patty_count,
+        product.category,
+        product.description || '',
+      ]
+    );
   }
+
+  // Remover produtos legados fora do cardápio oficial
+  const validIds = INITIAL_PRODUCTS.map((p) => `'${p.id}'`).join(',');
+  await driver.runAsync(`DELETE FROM products WHERE id NOT IN (${validIds})`);
 }

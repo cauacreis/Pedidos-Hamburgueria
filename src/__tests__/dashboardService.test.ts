@@ -16,15 +16,15 @@ describe('DashboardService - Offline Financial Metrics & Sales Insights', () => 
     await OrdersRepository.createOrder({
       customer_name: 'Cliente 1',
       items: [
-        { product_id: 'prod-double-cheddar', quantity: 2 }, // 2x burger, 4 carnes (36*2=72)
+        { product_id: 'prod-burger-2-carnes', quantity: 2 }, // 2x burger, 4 carnes (24*2=48)
       ],
     });
 
     await OrdersRepository.createOrder({
       customer_name: 'Cliente 2',
       items: [
-        { product_id: 'prod-classic-smash', quantity: 1 }, // 1x burger, 1 carne (28)
-        { product_id: 'prod-batata-rustica', quantity: 1 }, // 1x batata (18)
+        { product_id: 'prod-burger-1-carne', quantity: 1 }, // 1x burger, 1 carne (18)
+        { product_id: 'prod-batata-grande', quantity: 1 }, // 1x batata (7)
       ],
     });
   });
@@ -33,8 +33,8 @@ describe('DashboardService - Offline Financial Metrics & Sales Insights', () => 
     const summary = await DashboardService.getDailySummary();
 
     expect(summary.total_orders).toBe(2);
-    expect(summary.total_revenue).toBe(118.0); // 72 + 46 = 118
-    expect(summary.average_ticket).toBe(59.0); // 118 / 2
+    expect(summary.total_revenue).toBe(73.0); // 48 + 25 = 73
+    expect(summary.average_ticket).toBe(36.5); // 73 / 2
     expect(summary.total_burgers_sold).toBe(3);
     expect(summary.total_patties_sold).toBe(5); // 4 + 1
   });
@@ -42,18 +42,18 @@ describe('DashboardService - Offline Financial Metrics & Sales Insights', () => 
   it('ranks top selling products', async () => {
     const summary = await DashboardService.getDailySummary();
     expect(summary.top_products.length).toBeGreaterThan(0);
-    // Double cheddar teve quantidade 2
-    expect(summary.top_products[0].product_id).toBe('prod-double-cheddar');
+    // Burger 2 carnes teve quantidade 2
+    expect(summary.top_products[0].product_id).toBe('prod-burger-2-carnes');
     expect(summary.top_products[0].quantity).toBe(2);
   });
 
   it('does not inflate patties sold when customer buys only beverages and sides', async () => {
-    // Adicionar pedido apenas com bebidas e sobremesas
+    // Adicionar pedido apenas com bebidas e porções
     await OrdersRepository.createOrder({
-      customer_name: 'Apenas Bebida e Sobremesa',
+      customer_name: 'Apenas Bebida e Batata',
       items: [
-        { product_id: 'prod-coca-cola', quantity: 3 },
-        { product_id: 'prod-brownie', quantity: 2 },
+        { product_id: 'prod-refrigerante', quantity: 3 },
+        { product_id: 'prod-batata-pequena', quantity: 2 },
       ],
     });
 
@@ -71,7 +71,7 @@ describe('DashboardService - Offline Financial Metrics & Sales Insights', () => 
     await OrdersRepository.createOrder({
       customer_name: 'Cliente com Bebida',
       items: [
-        { product_id: 'prod-coca-cola', quantity: 1 },
+        { product_id: 'prod-refrigerante', quantity: 1 },
       ],
     });
 
@@ -100,6 +100,6 @@ describe('DashboardService - Offline Financial Metrics & Sales Insights', () => 
     const summary = await DashboardService.getDailySummary('all');
     expect(summary.date).toBe('all');
     expect(summary.total_orders).toBe(2);
-    expect(summary.total_revenue).toBe(118.0);
+    expect(summary.total_revenue).toBe(73.0);
   });
 });

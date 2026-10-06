@@ -17,6 +17,7 @@ interface CartDrawerProps {
   onUpdateNotes: (productId: string, notes: string) => void;
   onClearCart: () => void;
   onSubmitOrder: () => void;
+  onAddCombo?: () => void;
   submitting?: boolean;
 }
 
@@ -28,9 +29,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onUpdateNotes,
   onClearCart,
   onSubmitOrder,
+  onAddCombo,
   submitting = false,
 }) => {
   const total = items.reduce((acc, curr) => acc + curr.product.price * curr.quantity, 0);
+  const hasBurger = items.some((i) => i.product.category === 'burger');
+  const hasCombo = items.some((i) => i.product.category === 'combo');
 
   if (items.length === 0) {
     return (
@@ -101,6 +105,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </View>
         ))}
       </ScrollView>
+
+      {/* Banner de Upsell do Combo */}
+      {onAddCombo && hasBurger && !hasCombo && (
+        <TouchableOpacity style={styles.comboBanner} onPress={onAddCombo} activeOpacity={0.85}>
+          <Text style={styles.comboBannerText}>🍟+🥤 Combo: Batata Média + Bebida (+R$ 6,00)?</Text>
+          <View style={styles.comboBannerBtn}>
+            <Text style={styles.comboBannerBtnText}>+ Adicionar</Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Rodapé: Total e Botão de Envio */}
       <View style={styles.footer}>
@@ -279,5 +293,36 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+  },
+  comboBanner: {
+    backgroundColor: '#FF6B0018',
+    borderColor: THEME.colors.primary,
+    borderWidth: 1,
+    borderRadius: THEME.borderRadius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginHorizontal: THEME.spacing.lg,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  comboBannerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    flex: 1,
+    marginRight: 8,
+  },
+  comboBannerBtn: {
+    backgroundColor: THEME.colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: THEME.borderRadius.sm,
+  },
+  comboBannerBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

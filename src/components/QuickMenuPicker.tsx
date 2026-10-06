@@ -11,9 +11,9 @@ interface QuickMenuPickerProps {
 const CATEGORIES: { key: ProductCategory | 'all'; label: string }[] = [
   { key: 'all', label: 'Todos' },
   { key: 'burger', label: 'Hambúrgueres' },
-  { key: 'side', label: 'Acompanhamentos' },
+  { key: 'combo', label: 'Combos' },
+  { key: 'side', label: 'Batatas' },
   { key: 'drink', label: 'Bebidas' },
-  { key: 'dessert', label: 'Sobremesas' },
 ];
 
 export const QuickMenuPicker: React.FC<QuickMenuPickerProps> = ({ products, onSelectProduct }) => {

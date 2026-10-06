@@ -54,6 +54,13 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     });
   };
 
+  const handleAddCombo = () => {
+    const comboProduct = products.find((p) => p.id === 'prod-combo-batata-bebida');
+    if (comboProduct) {
+      handleSelectProduct(comboProduct);
+    }
+  };
+
   const handleUpdateQuantity = (productId: string, delta: number) => {
     setCart((prev) => {
       return prev
@@ -171,6 +178,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             onUpdateNotes={handleUpdateNotes}
             onClearCart={handleClearCart}
             onSubmitOrder={handleSubmitOrder}
+            onAddCombo={handleAddCombo}
             submitting={isSubmitting}
           />
         </View>

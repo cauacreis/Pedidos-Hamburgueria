@@ -17,7 +17,7 @@ describe('SupabaseSyncService - Outbox Pattern Synchronization', () => {
     // Criar pedido não sincronizado
     const order = await OrdersRepository.createOrder({
       customer_name: 'Sync Test Customer',
-      items: [{ product_id: 'prod-classic-smash', quantity: 1 }],
+      items: [{ product_id: 'prod-burger-1-carne', quantity: 1 }],
     });
 
     expect(order.synced).toBe(false);
