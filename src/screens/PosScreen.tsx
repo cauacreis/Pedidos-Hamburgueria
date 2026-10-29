@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { ShoppingBag, Clock, Bell, CheckCircle2 } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
 import { Product, Order } from '../types/database';
 import { INITIAL_PRODUCTS, ProductsRepository } from '../db/productsRepository';
@@ -125,12 +126,16 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       {/* Alerta de Pedido Pronto para Retirada */}
       {readyNotification && (
         <View style={styles.readyAlertBanner}>
+          <View style={styles.readyAlertIconBox}>
+            <Bell size={20} color="#FFFFFF" />
+          </View>
+
           <View style={styles.readyAlertContent}>
             <Text style={styles.readyAlertTitle}>
-              🔔 Pedido #{String(readyNotification.daily_number).padStart(2, '0')} está Pronto!
+              Pedido #{String(readyNotification.daily_number).padStart(2, '0')} está Pronto!
             </Text>
             <Text style={styles.readyAlertSub}>
-              Cliente: {readyNotification.customer_name}
+              Cliente: {readyNotification.customer_name || 'Balcão'}
             </Text>
           </View>
 
@@ -138,6 +143,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <TouchableOpacity
               style={styles.deliverFastBtn}
               onPress={() => onDeliverOrder(readyNotification.id)}
+              activeOpacity={0.85}
             >
               <Text style={styles.deliverFastBtnText}>Entregar</Text>
             </TouchableOpacity>
@@ -149,30 +155,61 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       )}
 
       {/* Sub Header de Navegação do Caixa: Cardápio vs Pedidos Ativos */}
-      <View style={styles.posTabs}>
-        <TouchableOpacity
-          style={[styles.posTab, activeTab === 'menu' && styles.posTabActive]}
-          onPress={() => setActiveTab('menu')}
-        >
-          <Text style={[styles.posTabText, activeTab === 'menu' && styles.posTabTextActive]}>
-            Lançamento Rápido
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.posTabsWrapper}>
+        <View style={styles.posTabs}>
+          <TouchableOpacity
+            style={[styles.posTab, activeTab === 'menu' && styles.posTabActive]}
+            onPress={() => setActiveTab('menu')}
+            activeOpacity={0.8}
+          >
+            <ShoppingBag
+              size={14}
+              color={activeTab === 'menu' ? '#FFFFFF' : THEME.colors.textSecondary}
+              style={styles.tabIcon}
+            />
+            <Text style={[styles.posTabText, activeTab === 'menu' && styles.posTabTextActive]}>
+              Lançamento Rápido
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.posTab, activeTab === 'active_orders' && styles.posTabActive]}
-          onPress={() => setActiveTab('active_orders')}
-        >
-          <Text style={[styles.posTabText, activeTab === 'active_orders' && styles.posTabTextActive]}>
-            Pedidos em Andamento ({activeOrders.length})
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.posTab, activeTab === 'active_orders' && styles.posTabActive]}
+            onPress={() => setActiveTab('active_orders')}
+            activeOpacity={0.8}
+          >
+            <Clock
+              size={14}
+              color={activeTab === 'active_orders' ? '#FFFFFF' : THEME.colors.textSecondary}
+              style={styles.tabIcon}
+            />
+            <Text style={[styles.posTabText, activeTab === 'active_orders' && styles.posTabTextActive]}>
+              Em Andamento
+            </Text>
+            {activeOrders.length > 0 && (
+              <View
+                style={[
+                  styles.activeCountBadge,
+                  activeTab === 'active_orders' && styles.activeCountBadgeSelected,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.activeCountText,
+                    activeTab === 'active_orders' && styles.activeCountTextSelected,
+                  ]}
+                >
+                  {activeOrders.length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Conteúdo Principal */}
       {activeTab === 'menu' ? (
         <View style={styles.menuContainer}>
-          <ScrollView style={styles.pickerScroll}>
+          <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
             <QuickMenuPicker
               products={products}
               onSelectProduct={handleSelectProduct}
@@ -194,10 +231,16 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           />
         </View>
       ) : (
-        <ScrollView style={styles.ordersScroll} contentContainerStyle={styles.ordersContent}>
+        <ScrollView style={styles.ordersScroll} contentContainerStyle={styles.ordersContent} showsVerticalScrollIndicator={false}>
           {activeOrders.length === 0 ? (
             <View style={styles.emptyOrdersBox}>
-              <Text style={styles.emptyOrdersText}>Nenhum pedido em andamento no momento.</Text>
+              <View style={styles.emptyIconCircle}>
+                <CheckCircle2 size={32} color={THEME.colors.secondary} />
+              </View>
+              <Text style={styles.emptyOrdersTitle}>Nenhum pedido em andamento</Text>
+              <Text style={styles.emptyOrdersText}>
+                Todos os pedidos foram entregues. Novos pedidos lançados no cardápio aparecerão aqui.
+              </Text>
             </View>
           ) : (
             activeOrders.map((order) => (
@@ -231,14 +274,24 @@ const styles = StyleSheet.create({
   readyAlertBanner: {
     backgroundColor: THEME.colors.success,
     paddingHorizontal: THEME.spacing.lg,
-    paddingVertical: THEME.spacing.md,
+    paddingVertical: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    shadowColor: THEME.colors.success,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
     elevation: 6,
+  },
+  readyAlertIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
   readyAlertContent: {
     flex: 1,
@@ -246,23 +299,29 @@ const styles = StyleSheet.create({
   readyAlertTitle: {
     color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: 16,
+    fontSize: 15,
   },
   readyAlertSub: {
     color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
+    marginTop: 1,
   },
   readyAlertActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   deliverFastBtn: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: THEME.borderRadius.md,
+    borderRadius: THEME.borderRadius.full,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   deliverFastBtnText: {
     color: THEME.colors.success,
@@ -275,27 +334,42 @@ const styles = StyleSheet.create({
   },
   dismissBtnText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
+  },
+  posTabsWrapper: {
+    backgroundColor: THEME.colors.surface,
+    paddingHorizontal: THEME.spacing.lg,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.colors.surfaceBorder,
   },
   posTabs: {
     flexDirection: 'row',
-    backgroundColor: THEME.colors.surface,
-    paddingHorizontal: THEME.spacing.lg,
-    paddingVertical: THEME.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: THEME.colors.surfaceBorder,
-    gap: 8,
+    backgroundColor: THEME.colors.surfaceElevated,
+    borderRadius: THEME.borderRadius.md,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderSubtle,
   },
   posTab: {
     flex: 1,
-    paddingVertical: 10,
+    flexDirection: 'row',
+    paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: THEME.borderRadius.md,
-    backgroundColor: THEME.colors.surfaceElevated,
+    justifyContent: 'center',
+    borderRadius: THEME.borderRadius.sm,
   },
   posTabActive: {
     backgroundColor: THEME.colors.primary,
+    shadowColor: THEME.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  tabIcon: {
+    marginRight: 6,
   },
   posTabText: {
     fontSize: 13,
@@ -303,6 +377,25 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
   },
   posTabTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  activeCountBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 8,
+    marginLeft: 6,
+  },
+  activeCountBadgeSelected: {
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+  },
+  activeCountText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: THEME.colors.textPrimary,
+  },
+  activeCountTextSelected: {
     color: '#FFFFFF',
   },
   menuContainer: {
@@ -316,13 +409,36 @@ const styles = StyleSheet.create({
   },
   ordersContent: {
     padding: THEME.spacing.lg,
+    paddingBottom: 40,
   },
   emptyOrdersBox: {
-    padding: 40,
+    paddingVertical: 60,
+    paddingHorizontal: 24,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: THEME.colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderHighlight,
+  },
+  emptyOrdersTitle: {
+    color: THEME.colors.textPrimary,
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 6,
   },
   emptyOrdersText: {
     color: THEME.colors.textMuted,
-    fontSize: 15,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 280,
   },
 });

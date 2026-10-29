@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { QrCode, ChefHat, Sparkles } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
 import { Order, OrderStatus } from '../types/database';
 import { ConnectionStatus } from '../network/types';
@@ -37,18 +38,21 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
     return (
       <View style={styles.disconnectedContainer}>
         <View style={styles.disconnectedBox}>
-          <Image
-            source={require('../../assets/logo.png')}
-            style={styles.disconnectedLogo}
-            resizeMode="contain"
-          />
+          <View style={styles.logoRingWrapper}>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.disconnectedLogo}
+              resizeMode="contain"
+            />
+          </View>
 
           <Text style={styles.disconnectedTitle}>Cozinha da Bodega</Text>
           <Text style={styles.disconnectedSubtitle}>
-            Conecte ao aparelho do Caixa para receber pedidos e acompanhar a fila de preparo em tempo real.
+            Conecte ao aparelho do Caixa para sincronizar pedidos e controlar a grelha em tempo real sem internet.
           </Text>
 
           <TouchableOpacity style={styles.scanBtn} onPress={onOpenScanner} activeOpacity={0.85}>
+            <QrCode size={18} color="#FFFFFF" style={styles.scanBtnIcon} />
             <Text style={styles.scanBtnText}>Escanear QR do Caixa</Text>
           </TouchableOpacity>
         </View>
@@ -58,15 +62,27 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Módulo Superior Obrigatório: Controle de Chapa / Carnes */}
+      {/* Módulo Superior: Controle de Chapa / Carnes */}
       <PattyCounter summary={pattySummary} />
 
       {/* Fila de Pedidos */}
-      <ScrollView style={styles.ordersScroll} contentContainerStyle={styles.ordersContent}>
+      <ScrollView
+        style={styles.ordersScroll}
+        contentContainerStyle={styles.ordersContent}
+        showsVerticalScrollIndicator={false}
+      >
         {orders.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>Chapa Livre! 🔥</Text>
-            <Text style={styles.emptySubtitle}>Nenhum pedido pendente na cozinha no momento.</Text>
+            <View style={styles.emptyIconCircle}>
+              <ChefHat size={36} color={THEME.colors.secondary} />
+            </View>
+            <View style={styles.emptyTitleRow}>
+              <Text style={styles.emptyTitle}>Chapa Livre!</Text>
+              <Sparkles size={18} color={THEME.colors.gold} />
+            </View>
+            <Text style={styles.emptySubtitle}>
+              Nenhum pedido pendente na cozinha. Novos pedidos lançados no Caixa cairão aqui na hora.
+            </Text>
           </View>
         ) : (
           orders.map((order) => (
@@ -97,43 +113,67 @@ const styles = StyleSheet.create({
   },
   disconnectedBox: {
     backgroundColor: THEME.colors.surface,
-    borderColor: THEME.colors.surfaceBorder,
+    borderColor: THEME.colors.surfaceBorderHighlight,
     borderWidth: 1.5,
     borderRadius: THEME.borderRadius.xl,
-    padding: THEME.spacing.xxl,
+    padding: 28,
     alignItems: 'center',
-    maxWidth: 360,
+    maxWidth: 380,
     width: '100%',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  logoRingWrapper: {
+    padding: 4,
+    borderRadius: THEME.borderRadius.full,
+    backgroundColor: 'rgba(190, 56, 39, 0.15)',
+    borderWidth: 1.5,
+    borderColor: THEME.colors.primary,
+    marginBottom: 16,
   },
   disconnectedLogo: {
     width: 100,
     height: 100,
-    marginBottom: 16,
   },
   disconnectedTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '900',
     color: THEME.colors.textPrimary,
     marginBottom: 8,
+    letterSpacing: 0.5,
   },
   disconnectedSubtitle: {
     fontSize: 13,
     color: THEME.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 19,
     marginBottom: 24,
+    maxWidth: 300,
   },
   scanBtn: {
     backgroundColor: THEME.colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: THEME.borderRadius.md,
     width: '100%',
-    alignItems: 'center',
+    shadowColor: THEME.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  scanBtnIcon: {
+    marginRight: 8,
   },
   scanBtnText: {
     color: '#FFFFFF',
-    fontWeight: '800',
+    fontWeight: '900',
     fontSize: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -143,20 +183,41 @@ const styles = StyleSheet.create({
   },
   ordersContent: {
     padding: THEME.spacing.lg,
+    paddingBottom: 40,
   },
   emptyContainer: {
-    padding: 60,
+    paddingVertical: 60,
+    paddingHorizontal: 24,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: THEME.colors.textPrimary,
+  emptyIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: THEME.colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderHighlight,
+  },
+  emptyTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 6,
   },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: THEME.colors.textPrimary,
+  },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: THEME.colors.textMuted,
     textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 280,
   },
 });

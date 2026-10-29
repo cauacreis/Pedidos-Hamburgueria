@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Flame, CheckCircle2, Clock, Check } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
 import { Order, OrderStatus } from '../types/database';
 import { KdsService } from '../services/kdsService';
@@ -28,15 +29,31 @@ export const OrderCard: React.FC<OrderCardProps> = ({
 
   const getUrgencyBadgeStyle = () => {
     if (order.status === 'ready') {
-      return { backgroundColor: THEME.colors.successLight, color: THEME.colors.success };
+      return {
+        backgroundColor: THEME.colors.successLight,
+        color: THEME.colors.success,
+        borderColor: THEME.colors.successBorder,
+      };
     }
     if (waitMetrics.urgency === 'urgent') {
-      return { backgroundColor: THEME.colors.dangerLight, color: THEME.colors.danger };
+      return {
+        backgroundColor: THEME.colors.dangerLight,
+        color: THEME.colors.danger,
+        borderColor: THEME.colors.dangerBorder,
+      };
     }
     if (waitMetrics.urgency === 'warning') {
-      return { backgroundColor: THEME.colors.warningLight, color: THEME.colors.warning };
+      return {
+        backgroundColor: THEME.colors.warningLight,
+        color: THEME.colors.warning,
+        borderColor: THEME.colors.warningBorder,
+      };
     }
-    return { backgroundColor: THEME.colors.surfaceHighlight, color: THEME.colors.textSecondary };
+    return {
+      backgroundColor: THEME.colors.surfaceElevated,
+      color: THEME.colors.textSecondary,
+      borderColor: THEME.colors.surfaceBorderSubtle,
+    };
   };
 
   const badgeStyle = getUrgencyBadgeStyle();
@@ -46,17 +63,37 @@ export const OrderCard: React.FC<OrderCardProps> = ({
       {/* Header do Card: Senha, Cliente e Timer */}
       <View style={styles.header}>
         <View style={styles.numberContainer}>
-          <Text style={styles.dailyNumber}>#{String(order.daily_number).padStart(2, '0')}</Text>
-          <Text style={styles.customerName} numberOfLines={1}>
-            {order.customer_name}
-          </Text>
+          <View style={styles.dailyNumberPill}>
+            <Text style={styles.dailyNumber}>#{String(order.daily_number).padStart(2, '0')}</Text>
+          </View>
+          <View style={styles.customerCol}>
+            <Text style={styles.customerName} numberOfLines={1}>
+              {order.customer_name || 'Balcão'}
+            </Text>
+            {mode === 'pos' && (
+              <Text style={styles.orderCreatedAt}>
+                {order.items?.length || 0} {(order.items?.length || 0) === 1 ? 'item' : 'itens'}
+              </Text>
+            )}
+          </View>
         </View>
 
-        <View style={[styles.timerBadge, { backgroundColor: badgeStyle.backgroundColor }]}>
+        <View
+          style={[
+            styles.timerBadge,
+            {
+              backgroundColor: badgeStyle.backgroundColor,
+              borderColor: badgeStyle.borderColor,
+            },
+          ]}
+        >
+          {order.status === 'ready' ? (
+            <CheckCircle2 size={13} color={badgeStyle.color} style={styles.timerIcon} />
+          ) : (
+            <Clock size={13} color={badgeStyle.color} style={styles.timerIcon} />
+          )}
           <Text style={[styles.timerText, { color: badgeStyle.color }]}>
-            {order.status === 'ready'
-              ? 'Pronto'
-              : `${waitMetrics.minutesElapsed} min`}
+            {order.status === 'ready' ? 'Pronto' : `${waitMetrics.minutesElapsed} min`}
           </Text>
         </View>
       </View>
@@ -66,7 +103,9 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         {(order.items || []).map((item, idx) => (
           <View key={item.id || idx} style={styles.itemRow}>
             <View style={styles.itemMain}>
-              <Text style={styles.itemQty}>{item.quantity}x</Text>
+              <View style={styles.qtyPill}>
+                <Text style={styles.itemQty}>{item.quantity}x</Text>
+              </View>
               <Text style={styles.itemName}>{item.product_name || 'Item'}</Text>
               {item.patty_count && item.patty_count > 0 ? (
                 <View style={styles.pattyBadge}>
@@ -79,7 +118,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({
 
             {item.notes ? (
               <View style={styles.notesBox}>
-                <Text style={styles.notesText}>⚠️ {item.notes}</Text>
+                <Text style={styles.notesIcon}>⚠️</Text>
+                <Text style={styles.notesText}>{item.notes}</Text>
               </View>
             ) : null}
           </View>
@@ -96,7 +136,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                 onPress={() => onUpdateStatus && onUpdateStatus(order.id, 'preparing')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.btnText}>Iniciar Preparo</Text>
+                <Flame size={18} color="#FFFFFF" style={styles.btnIcon} />
+                <Text style={styles.btnText}>INICIAR PREPARO</Text>
               </TouchableOpacity>
             )}
 
@@ -106,13 +147,15 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                 onPress={() => onUpdateStatus && onUpdateStatus(order.id, 'ready')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.btnText}>Marcar como Pronto</Text>
+                <CheckCircle2 size={18} color="#FFFFFF" style={styles.btnIcon} />
+                <Text style={styles.btnText}>MARCAR COMO PRONTO</Text>
               </TouchableOpacity>
             )}
 
             {order.status === 'ready' && (
               <View style={styles.readyTag}>
-                <Text style={styles.readyTagText}>Aguardando Entrega</Text>
+                <CheckCircle2 size={16} color={THEME.colors.success} style={styles.readyTagIcon} />
+                <Text style={styles.readyTagText}>Aguardando Entrega pelo Caixa</Text>
               </View>
             )}
           </>
@@ -121,21 +164,34 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         {mode === 'pos' && (
           <View style={styles.posFooter}>
             <View style={styles.statusPillContainer}>
-              <Text style={styles.posTotal}>R$ {order.total.toFixed(2)}</Text>
-              <Text
+              <View style={styles.posPriceRow}>
+                <Text style={styles.posTotalPrefix}>R$</Text>
+                <Text style={styles.posTotal}>{order.total.toFixed(2)}</Text>
+              </View>
+
+              <View
                 style={[
-                  styles.posStatusBadge,
-                  order.status === 'ready' && { color: THEME.colors.success },
-                  order.status === 'preparing' && { color: THEME.colors.warning },
-                  order.status === 'queued' && { color: THEME.colors.textMuted },
-                  order.status === 'delivered' && { color: THEME.colors.info },
+                  styles.posStatusChip,
+                  order.status === 'ready' && styles.posStatusReady,
+                  order.status === 'preparing' && styles.posStatusPreparing,
+                  order.status === 'queued' && styles.posStatusQueued,
                 ]}
               >
-                {order.status === 'queued' && 'Na fila'}
-                {order.status === 'preparing' && 'Na chapa'}
-                {order.status === 'ready' && 'Pronto!'}
-                {order.status === 'delivered' && 'Entregue'}
-              </Text>
+                <Text
+                  style={[
+                    styles.posStatusText,
+                    order.status === 'ready' && { color: THEME.colors.success },
+                    order.status === 'preparing' && { color: THEME.colors.warning },
+                    order.status === 'queued' && { color: THEME.colors.textMuted },
+                    order.status === 'delivered' && { color: THEME.colors.info },
+                  ]}
+                >
+                  {order.status === 'queued' && 'Na Fila'}
+                  {order.status === 'preparing' && 'Na Chapa'}
+                  {order.status === 'ready' && 'Pronto para Retirada'}
+                  {order.status === 'delivered' && 'Entregue'}
+                </Text>
+              </View>
             </View>
 
             {order.status === 'ready' && (
@@ -144,7 +200,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                 onPress={() => onDeliverOrder && onDeliverOrder(order.id)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.btnText}>Entregar Pedido</Text>
+                <Check size={16} color="#FFFFFF" style={styles.btnIcon} strokeWidth={3} />
+                <Text style={styles.btnDeliverText}>Entregar Pedido</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -159,43 +216,71 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.surface,
     borderWidth: 1.5,
     borderRadius: THEME.borderRadius.lg,
-    padding: THEME.spacing.md,
+    padding: 14,
     marginBottom: THEME.spacing.md,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: THEME.colors.surfaceBorder,
-    paddingBottom: THEME.spacing.sm,
-    marginBottom: THEME.spacing.sm,
+    borderBottomColor: THEME.colors.surfaceBorderSubtle,
+    paddingBottom: 10,
+    marginBottom: 10,
   },
   numberContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  dailyNumberPill: {
+    backgroundColor: THEME.colors.surfaceElevated,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: THEME.borderRadius.md,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderHighlight,
+    marginRight: 10,
+  },
   dailyNumber: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
-    color: THEME.colors.textPrimary,
-    marginRight: 8,
+    color: THEME.colors.primary,
+    letterSpacing: 0.8,
+  },
+  customerCol: {
+    flex: 1,
   },
   customerName: {
     fontSize: 16,
-    fontWeight: '700',
-    color: THEME.colors.textSecondary,
-    flex: 1,
+    fontWeight: '800',
+    color: THEME.colors.textPrimary,
+  },
+  orderCreatedAt: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+    marginTop: 1,
   },
   timerBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: THEME.borderRadius.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: THEME.borderRadius.full,
+    borderWidth: 1,
+  },
+  timerIcon: {
+    marginRight: 5,
   },
   timerText: {
     fontSize: 12,
     fontWeight: '800',
+    letterSpacing: 0.3,
   },
   itemsList: {
     marginVertical: 4,
@@ -207,11 +292,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  qtyPill: {
+    backgroundColor: THEME.colors.surfaceElevated,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: THEME.borderRadius.sm,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderSubtle,
+  },
   itemQty: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '900',
     color: THEME.colors.primary,
-    width: 28,
   },
   itemName: {
     fontSize: 15,
@@ -220,71 +313,105 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   pattyBadge: {
-    backgroundColor: THEME.colors.surfaceElevated,
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(226, 88, 34, 0.12)',
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: THEME.borderRadius.sm,
+    borderRadius: THEME.borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 88, 34, 0.3)',
     marginLeft: 6,
   },
   pattyBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     color: THEME.colors.grillAmber,
   },
   notesBox: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(229, 142, 38, 0.12)',
+    borderLeftWidth: 3,
+    borderLeftColor: THEME.colors.warning,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: THEME.borderRadius.sm,
-    paddingVertical: 3,
-    paddingHorizontal: 6,
     marginTop: 4,
-    marginLeft: 28,
-    alignSelf: 'flex-start',
+    marginLeft: 32,
+  },
+  notesIcon: {
+    marginRight: 5,
+    fontSize: 12,
   },
   notesText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: THEME.colors.warning,
   },
   footer: {
-    marginTop: THEME.spacing.sm,
+    marginTop: 6,
+    paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: THEME.colors.surfaceBorder,
-    paddingTop: THEME.spacing.sm,
+    borderTopColor: THEME.colors.surfaceBorderSubtle,
   },
   actionBtn: {
-    borderRadius: THEME.borderRadius.md,
-    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: THEME.borderRadius.md,
+  },
+  btnIcon: {
+    marginRight: 8,
   },
   btnStart: {
-    backgroundColor: THEME.colors.primary,
+    backgroundColor: THEME.colors.warning,
+    shadowColor: THEME.colors.warning,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
   },
   btnReady: {
     backgroundColor: THEME.colors.success,
+    shadowColor: THEME.colors.success,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
   },
   btnDeliver: {
     backgroundColor: THEME.colors.success,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
+  },
+  btnDeliverText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   btnText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    fontWeight: '900',
+    letterSpacing: 0.6,
   },
   readyTag: {
-    backgroundColor: THEME.colors.successLight,
-    paddingVertical: 8,
-    borderRadius: THEME.borderRadius.md,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    backgroundColor: THEME.colors.successLight,
+    borderRadius: THEME.borderRadius.md,
+    borderWidth: 1,
+    borderColor: THEME.colors.successBorder,
+  },
+  readyTagIcon: {
+    marginRight: 6,
   },
   readyTagText: {
-    color: THEME.colors.success,
     fontSize: 13,
     fontWeight: '800',
+    color: THEME.colors.success,
   },
   posFooter: {
     flexDirection: 'row',
@@ -292,16 +419,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusPillContainer: {
-    flexDirection: 'column',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  posTotal: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: THEME.colors.textPrimary,
+  posPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
-  posStatusBadge: {
+  posTotalPrefix: {
     fontSize: 12,
     fontWeight: '700',
-    textTransform: 'uppercase',
+    color: THEME.colors.textSecondary,
+    marginRight: 2,
+  },
+  posTotal: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: THEME.colors.textPrimary,
+  },
+  posStatusChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: THEME.borderRadius.full,
+    backgroundColor: THEME.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderSubtle,
+  },
+  posStatusReady: {
+    backgroundColor: THEME.colors.successLight,
+    borderColor: THEME.colors.successBorder,
+  },
+  posStatusPreparing: {
+    backgroundColor: THEME.colors.warningLight,
+    borderColor: THEME.colors.warningBorder,
+  },
+  posStatusQueued: {
+    backgroundColor: THEME.colors.surfaceElevated,
+  },
+  posStatusText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
 });

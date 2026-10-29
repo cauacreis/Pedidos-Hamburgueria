@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { ShoppingBag, ChefHat, TrendingUp, QrCode, Wifi, WifiOff } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
 import { ConnectionStatus } from '../network/types';
 
@@ -20,24 +21,34 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenConnectModal,
   onOpenScannerModal,
 }) => {
+  const isPos = role === 'pos';
+  const isKds = role === 'kds';
+  const isDashboard = role === 'dashboard';
+
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
         <View style={styles.brandContainer}>
-          <Image
-            source={require('../../assets/logo_icon.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+          <View style={styles.logoRing}>
+            <Image
+              source={require('../../assets/logo_icon.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
           <View style={styles.brandTextCol}>
-            <Text style={styles.brandTitle}>BODEGA DO VIDIGAL</Text>
-            <Text style={styles.brandSubtitle}>Hamburgueria Artesanal</Text>
+            <View style={styles.brandTitleRow}>
+              <Text style={styles.brandTitle}>BODEGA DO VIDIGAL</Text>
+            </View>
+            <View style={styles.brandTag}>
+              <Text style={styles.brandSubtitle}>HAMBURGUERIA ARTESANAL</Text>
+            </View>
           </View>
         </View>
 
-        {/* Indicador de Conexão */}
+        {/* Indicador de Conexão com Feedback Visual */}
         <View style={styles.statusSection}>
-          {role === 'pos' && (
+          {isPos && (
             <TouchableOpacity
               style={[
                 styles.connectionBadge,
@@ -46,16 +57,19 @@ export const Header: React.FC<HeaderProps> = ({
               onPress={onOpenConnectModal}
               activeOpacity={0.8}
             >
-              <View
+              {connectedClientsCount > 0 ? (
+                <Wifi size={13} color={THEME.colors.success} style={styles.badgeIcon} />
+              ) : (
+                <QrCode size={13} color={THEME.colors.gold} style={styles.badgeIcon} />
+              )}
+              <Text
                 style={[
-                  styles.statusDot,
-                  {
-                    backgroundColor:
-                      connectedClientsCount > 0 ? THEME.colors.success : THEME.colors.warning,
-                  },
+                  styles.connectionText,
+                  connectedClientsCount > 0
+                    ? { color: THEME.colors.textPrimary }
+                    : { color: THEME.colors.gold },
                 ]}
-              />
-              <Text style={styles.connectionText}>
+              >
                 {connectedClientsCount > 0
                   ? `${connectedClientsCount} Cozinha conectada`
                   : 'Conectar Cozinha'}
@@ -63,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
             </TouchableOpacity>
           )}
 
-          {role === 'kds' && (
+          {isKds && (
             <TouchableOpacity
               style={[
                 styles.connectionBadge,
@@ -76,53 +90,65 @@ export const Header: React.FC<HeaderProps> = ({
               onPress={connectionStatus !== 'connected' ? onOpenScannerModal : undefined}
               activeOpacity={0.8}
             >
-              <View
-                style={[
-                  styles.statusDot,
-                  {
-                    backgroundColor:
-                      connectionStatus === 'connected'
-                        ? THEME.colors.success
-                        : connectionStatus === 'reconnecting' || connectionStatus === 'connecting'
-                        ? THEME.colors.warning
-                        : THEME.colors.danger,
-                  },
-                ]}
-              />
+              {connectionStatus === 'connected' ? (
+                <Wifi size={13} color={THEME.colors.success} style={styles.badgeIcon} />
+              ) : (
+                <WifiOff size={13} color={THEME.colors.danger} style={styles.badgeIcon} />
+              )}
               <Text style={styles.connectionText}>
                 {connectionStatus === 'connected'
                   ? 'Conectado ao Caixa'
                   : connectionStatus === 'reconnecting' || connectionStatus === 'connecting'
                   ? 'Reconectando...'
-                  : 'Desconectado (Escanear)'}
+                  : 'Escanear QR do Caixa'}
               </Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Role Switcher */}
-      <View style={styles.tabsRow}>
-        <TouchableOpacity
-          style={[styles.tabButton, role === 'pos' && styles.tabButtonActive]}
-          onPress={() => onSelectRole('pos')}
-        >
-          <Text style={[styles.tabText, role === 'pos' && styles.tabTextActive]}>Frente de Caixa</Text>
-        </TouchableOpacity>
+      {/* Role Switcher - Cápsula Tátil de Navegação */}
+      <View style={styles.tabsWrapper}>
+        <View style={styles.tabsRow}>
+          <TouchableOpacity
+            style={[styles.tabButton, isPos && styles.tabButtonActive]}
+            onPress={() => onSelectRole('pos')}
+            activeOpacity={0.8}
+          >
+            <ShoppingBag
+              size={15}
+              color={isPos ? '#FFFFFF' : THEME.colors.textSecondary}
+              style={styles.tabIcon}
+            />
+            <Text style={[styles.tabText, isPos && styles.tabTextActive]}>Frente de Caixa</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabButton, role === 'kds' && styles.tabButtonActive]}
-          onPress={() => onSelectRole('kds')}
-        >
-          <Text style={[styles.tabText, role === 'kds' && styles.tabTextActive]}>Cozinha / KDS</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabButton, isKds && styles.tabButtonActive]}
+            onPress={() => onSelectRole('kds')}
+            activeOpacity={0.8}
+          >
+            <ChefHat
+              size={15}
+              color={isKds ? '#FFFFFF' : THEME.colors.textSecondary}
+              style={styles.tabIcon}
+            />
+            <Text style={[styles.tabText, isKds && styles.tabTextActive]}>Cozinha / KDS</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabButton, role === 'dashboard' && styles.tabButtonActive]}
-          onPress={() => onSelectRole('dashboard')}
-        >
-          <Text style={[styles.tabText, role === 'dashboard' && styles.tabTextActive]}>Dashboard</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabButton, isDashboard && styles.tabButtonActive]}
+            onPress={() => onSelectRole('dashboard')}
+            activeOpacity={0.8}
+          >
+            <TrendingUp
+              size={15}
+              color={isDashboard ? '#FFFFFF' : THEME.colors.textSecondary}
+              style={styles.tabIcon}
+            />
+            <Text style={[styles.tabText, isDashboard && styles.tabTextActive]}>Dashboard</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -131,7 +157,7 @@ export const Header: React.FC<HeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: THEME.colors.surface,
-    paddingTop: 45,
+    paddingTop: 46,
     paddingBottom: THEME.spacing.md,
     paddingHorizontal: THEME.spacing.lg,
     borderBottomWidth: 1,
@@ -141,36 +167,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: THEME.spacing.md,
+    marginBottom: 14,
   },
   brandContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+  },
+  logoRing: {
+    padding: 2,
+    borderRadius: THEME.borderRadius.full,
+    backgroundColor: 'rgba(190, 56, 39, 0.2)',
+    borderWidth: 1.5,
+    borderColor: THEME.colors.primary,
   },
   logoImage: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    borderWidth: 1.5,
-    borderColor: THEME.colors.primary,
   },
   brandTextCol: {
     justifyContent: 'center',
   },
+  brandTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   brandTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '900',
     letterSpacing: 0.8,
     color: THEME.colors.textPrimary,
   },
+  brandTag: {
+    marginTop: 2,
+  },
   brandSubtitle: {
     fontSize: 10,
     color: THEME.colors.secondary,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontWeight: '800',
+    letterSpacing: 0.9,
     textTransform: 'uppercase',
-    marginTop: 1,
   },
   statusSection: {
     flexDirection: 'row',
@@ -179,27 +216,24 @@ const styles = StyleSheet.create({
   connectionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 13,
     borderRadius: THEME.borderRadius.full,
     borderWidth: 1,
   },
   badgeConnected: {
     backgroundColor: THEME.colors.successLight,
-    borderColor: THEME.colors.success,
+    borderColor: THEME.colors.successBorder,
   },
   badgeDisconnected: {
     backgroundColor: THEME.colors.dangerLight,
-    borderColor: THEME.colors.danger,
+    borderColor: THEME.colors.dangerBorder,
   },
   badgeWarning: {
-    backgroundColor: THEME.colors.warningLight,
-    borderColor: THEME.colors.warning,
+    backgroundColor: THEME.colors.goldLight,
+    borderColor: THEME.colors.goldBorder,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  badgeIcon: {
     marginRight: 6,
   },
   connectionText: {
@@ -207,20 +241,36 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: THEME.colors.textPrimary,
   },
+  tabsWrapper: {
+    marginTop: 2,
+  },
   tabsRow: {
     flexDirection: 'row',
     backgroundColor: THEME.colors.surfaceElevated,
     borderRadius: THEME.borderRadius.md,
     padding: 3,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderSubtle,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    paddingVertical: 9,
+    paddingHorizontal: 6,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: THEME.borderRadius.sm,
   },
   tabButtonActive: {
     backgroundColor: THEME.colors.primary,
+    shadowColor: THEME.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  tabIcon: {
+    marginRight: 6,
   },
   tabText: {
     fontSize: 13,
