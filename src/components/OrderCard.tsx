@@ -129,36 +129,19 @@ export const OrderCard: React.FC<OrderCardProps> = ({
       {/* Rodapé e Botões de Ação */}
       <View style={styles.footer}>
         {mode === 'kds' && (
-          <>
-            {order.status === 'queued' && (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.btnStart]}
-                onPress={() => onUpdateStatus && onUpdateStatus(order.id, 'preparing')}
-                activeOpacity={0.8}
-              >
-                <Flame size={18} color="#FFFFFF" style={styles.btnIcon} />
-                <Text style={styles.btnText}>INICIAR PREPARO</Text>
-              </TouchableOpacity>
-            )}
-
-            {order.status === 'preparing' && (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.btnReady]}
-                onPress={() => onUpdateStatus && onUpdateStatus(order.id, 'ready')}
-                activeOpacity={0.8}
-              >
-                <CheckCircle2 size={18} color="#FFFFFF" style={styles.btnIcon} />
-                <Text style={styles.btnText}>MARCAR COMO PRONTO</Text>
-              </TouchableOpacity>
-            )}
-
-            {order.status === 'ready' && (
-              <View style={styles.readyTag}>
-                <CheckCircle2 size={16} color={THEME.colors.success} style={styles.readyTagIcon} />
-                <Text style={styles.readyTagText}>Aguardando Entrega pelo Caixa</Text>
+          <View style={styles.kdsCardFooter}>
+            {order.status === 'ready' ? (
+              <View style={styles.kdsReadyBadge}>
+                <CheckCircle2 size={15} color={THEME.colors.success} style={styles.btnIcon} />
+                <Text style={styles.kdsReadyText}>Pronto no Balcão (Aguardando Retirada)</Text>
+              </View>
+            ) : (
+              <View style={styles.kdsPrepBadge}>
+                <Flame size={15} color={THEME.colors.grillAmber} style={styles.btnIcon} />
+                <Text style={styles.kdsPrepText}>Na Fila para Preparo</Text>
               </View>
             )}
-          </>
+          </View>
         )}
 
         {mode === 'pos' && (
@@ -194,7 +177,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({
               </View>
             </View>
 
-            {order.status === 'ready' && (
+            {/* O Balcão confirma quando fica pronto ou entrega */}
+            {order.status === 'ready' ? (
               <TouchableOpacity
                 style={[styles.actionBtn, styles.btnDeliver]}
                 onPress={() => onDeliverOrder && onDeliverOrder(order.id)}
@@ -202,6 +186,15 @@ export const OrderCard: React.FC<OrderCardProps> = ({
               >
                 <Check size={16} color="#FFFFFF" style={styles.btnIcon} strokeWidth={3} />
                 <Text style={styles.btnDeliverText}>Entregar Pedido</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.btnReadyPos]}
+                onPress={() => onUpdateStatus && onUpdateStatus(order.id, 'ready')}
+                activeOpacity={0.8}
+              >
+                <CheckCircle2 size={16} color="#FFFFFF" style={styles.btnIcon} />
+                <Text style={styles.btnReadyPosText}>Marcar Pronto</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -353,6 +346,41 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: THEME.colors.surfaceBorderSubtle,
   },
+  kdsCardFooter: {
+    paddingVertical: 4,
+  },
+  kdsPrepBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    backgroundColor: 'rgba(226, 88, 34, 0.12)',
+    borderRadius: THEME.borderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 88, 34, 0.35)',
+  },
+  kdsPrepText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: THEME.colors.grillAmber,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  kdsReadyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    backgroundColor: THEME.colors.successLight,
+    borderRadius: THEME.borderRadius.md,
+    borderWidth: 1,
+    borderColor: THEME.colors.successBorder,
+  },
+  kdsReadyText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: THEME.colors.success,
+  },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -363,24 +391,24 @@ const styles = StyleSheet.create({
   btnIcon: {
     marginRight: 8,
   },
-  btnStart: {
-    backgroundColor: THEME.colors.warning,
-    shadowColor: THEME.colors.warning,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  btnReady: {
+  btnReadyPos: {
     backgroundColor: THEME.colors.success,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     shadowColor: THEME.colors.success,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  btnReadyPosText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.4,
   },
   btnDeliver: {
-    backgroundColor: THEME.colors.success,
+    backgroundColor: THEME.colors.primary,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
@@ -388,30 +416,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
-  },
-  btnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-  },
-  readyTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    backgroundColor: THEME.colors.successLight,
-    borderRadius: THEME.borderRadius.md,
-    borderWidth: 1,
-    borderColor: THEME.colors.successBorder,
-  },
-  readyTagIcon: {
-    marginRight: 6,
-  },
-  readyTagText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: THEME.colors.success,
   },
   posFooter: {
     flexDirection: 'row',

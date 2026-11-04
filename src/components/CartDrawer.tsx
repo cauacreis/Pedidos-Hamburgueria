@@ -8,6 +8,7 @@ export interface CartItem {
   product: Product;
   quantity: number;
   notes: string;
+  unitNotes?: string[];
 }
 
 interface CartDrawerProps {
@@ -16,6 +17,7 @@ interface CartDrawerProps {
   onChangeCustomerName: (name: string) => void;
   onUpdateQuantity: (productId: string, delta: number) => void;
   onUpdateNotes: (productId: string, notes: string) => void;
+  onUpdateUnitNote?: (productId: string, unitIndex: number, note: string) => void;
   onClearCart: () => void;
   onSubmitOrder: () => void;
   onAddCombo?: () => void;
@@ -28,6 +30,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onChangeCustomerName,
   onUpdateQuantity,
   onUpdateNotes,
+  onUpdateUnitNote,
   onClearCart,
   onSubmitOrder,
   onAddCombo,
@@ -82,7 +85,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
       {/* Itens do Pedido */}
       <ScrollView style={styles.itemsScroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-        {items.map(({ product, quantity, notes }) => (
+        {items.map(({ product, quantity, notes, unitNotes }) => (
           <View key={product.id} style={styles.itemRow}>
             <View style={styles.itemTop}>
               <View style={styles.itemInfo}>
@@ -119,14 +122,46 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </View>
             </View>
 
-            {/* Observação / Ponto */}
-            <TextInput
-              style={styles.notesInput}
-              placeholder="Obs: Sem picles, bem passado, maionese à parte..."
-              placeholderTextColor={THEME.colors.textMuted}
-              value={notes}
-              onChangeText={(text) => onUpdateNotes(product.id, text)}
-            />
+            {/* Observações / Ponto: se for 1 unidade, input simples; se > 1, inputs individuais para cada lanche */}
+            {quantity > 1 ? (
+              <View style={styles.unitNotesWrapper}>
+                <Text style={styles.unitNotesHeading}>Observações individuais por lanche:</Text>
+                {Array.from({ length: quantity }).map((_, unitIdx) => (
+                  <View key={unitIdx} style={styles.unitNoteRow}>
+                    <View style={styles.unitIndexBadge}>
+                      <Text style={styles.unitIndexText}>#{unitIdx + 1}</Text>
+                    </View>
+                    <TextInput
+                      style={styles.unitNoteInput}
+                      placeholder={`Obs do lanche #${unitIdx + 1} (ex: sem picles, bem passado...)`}
+                      placeholderTextColor={THEME.colors.textMuted}
+                      value={unitNotes?.[unitIdx] ?? ''}
+                      onChangeText={(text) => {
+                        if (onUpdateUnitNote) {
+                          onUpdateUnitNote(product.id, unitIdx, text);
+                        } else {
+                          onUpdateNotes(product.id, text);
+                        }
+                      }}
+                    />
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <TextInput
+                style={styles.notesInput}
+                placeholder="Obs: Sem picles, bem passado, maionese à parte..."
+                placeholderTextColor={THEME.colors.textMuted}
+                value={unitNotes?.[0] !== undefined ? unitNotes[0] : notes}
+                onChangeText={(text) => {
+                  if (onUpdateUnitNote) {
+                    onUpdateUnitNote(product.id, 0, text);
+                  } else {
+                    onUpdateNotes(product.id, text);
+                  }
+                }}
+              />
+            )}
           </View>
         ))}
       </ScrollView>
@@ -207,7 +242,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: THEME.colors.surfaceBorder,
     borderBottomWidth: 0,
-    maxHeight: 410,
+    maxHeight: 460,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.4,
@@ -280,7 +315,7 @@ const styles = StyleSheet.create({
   },
   itemsScroll: {
     paddingHorizontal: THEME.spacing.lg,
-    maxHeight: 170,
+    maxHeight: 220,
   },
   itemRow: {
     backgroundColor: THEME.colors.surfaceElevated,
@@ -347,10 +382,57 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: THEME.borderRadius.sm,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
     fontSize: 12,
     color: THEME.colors.textPrimary,
     marginTop: 6,
+  },
+  unitNotesWrapper: {
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: THEME.colors.surfaceBorderSubtle,
+  },
+  unitNotesHeading: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.colors.textSecondary,
+    marginBottom: 5,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  unitNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  unitIndexBadge: {
+    backgroundColor: THEME.colors.surface,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderHighlight,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: THEME.borderRadius.sm,
+    marginRight: 6,
+    minWidth: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unitIndexText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: THEME.colors.primary,
+  },
+  unitNoteInput: {
+    flex: 1,
+    backgroundColor: THEME.colors.surface,
+    borderColor: THEME.colors.surfaceBorderSubtle,
+    borderWidth: 1,
+    borderRadius: THEME.borderRadius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    fontSize: 12,
+    color: THEME.colors.textPrimary,
   },
   comboBanner: {
     backgroundColor: 'rgba(229, 169, 60, 0.1)',

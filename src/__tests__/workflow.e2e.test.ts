@@ -111,4 +111,37 @@ describe('Food Truck End-to-End Workflow Integration Test', () => {
     const unsyncedAfter = await OrdersRepository.getUnsyncedOrders();
     expect(unsyncedAfter.length).toBe(0);
   });
+
+  it('handles multiple units of the same burger with individual handwritten notes and balcão status confirmation', async () => {
+    // Cenário solicitado pelo cliente:
+    // 2x do mesmo hambúrguer no pedido com notas diferentes (ex: lanche 1: "sem picles", lanche 2: "bem passado, sem cebola")
+    const orderWithIndividualNotes = await OrdersRepository.createOrder({
+      customer_name: 'Marcos',
+      items: [
+        { product_id: 'prod-burger-1-carne', quantity: 1, notes: 'sem picles' },
+        { product_id: 'prod-burger-1-carne', quantity: 1, notes: 'bem passado, sem cebola' },
+      ],
+    });
+
+    expect(orderWithIndividualNotes.daily_number).toBe(1);
+    expect(orderWithIndividualNotes.total).toBe(36.0); // 18 + 18
+    expect(orderWithIndividualNotes.items?.length).toBe(2);
+
+    // Ambas as unidades são salvas com suas notas individuais distintas
+    expect(orderWithIndividualNotes.items?.[0].notes).toBe('sem picles');
+    expect(orderWithIndividualNotes.items?.[1].notes).toBe('bem passado, sem cebola');
+
+    // Chapa calcula 2 carnes no total
+    let pattyMetrics = KdsService.calculatePattyCounter([orderWithIndividualNotes]);
+    expect(pattyMetrics.totalPendingPatties).toBe(2);
+
+    // O Balcão confirma quando fica pronto (KDS não precisa clicar em nada)
+    await OrdersRepository.updateOrderStatus(orderWithIndividualNotes.id, 'ready');
+    const readyOrder = await OrdersRepository.getOrderById(orderWithIndividualNotes.id);
+    expect(readyOrder?.status).toBe('ready');
+
+    // Quando o Balcão marca como pronto, as carnes saem da chapa imediatamente
+    pattyMetrics = KdsService.calculatePattyCounter([readyOrder!]);
+    expect(pattyMetrics.totalPendingPatties).toBe(0);
+  });
 });

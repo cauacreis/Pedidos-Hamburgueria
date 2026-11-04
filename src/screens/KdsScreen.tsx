@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { QrCode, ChefHat, Sparkles } from 'lucide-react-native';
+import { QrCode, ChefHat, Sparkles, Flame, CheckCircle2 } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
 import { Order, OrderStatus } from '../types/database';
 import { ConnectionStatus } from '../network/types';
@@ -23,6 +23,11 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
 }) => {
   const pattySummary = usePattyCount(orders);
   const isDisconnected = connectionStatus === 'disconnected';
+  const [activeTab, setActiveTab] = useState<'pending' | 'ready'>('pending');
+
+  // Separar pedidos ativos para preparo (Fila da Cozinha) vs Prontos confirmados pelo Balcão
+  const pendingOrders = orders.filter((o) => o.status === 'queued' || o.status === 'preparing');
+  const readyOrders = orders.filter((o) => o.status === 'ready');
 
   // Atualização periódica dos minutos de espera e cores de urgência em tempo real
   const [, setTick] = useState<number>(0);
@@ -60,32 +65,77 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
     );
   }
 
+  const displayedOrders = activeTab === 'pending' ? pendingOrders : readyOrders;
+
   return (
     <View style={styles.container}>
       {/* Módulo Superior: Controle de Chapa / Carnes */}
       <PattyCounter summary={pattySummary} />
 
-      {/* Fila de Pedidos */}
+      {/* Seletor de Fila da Cozinha: Fila de Preparo vs Prontos no Balcão */}
+      <View style={styles.kdsTabsWrapper}>
+        <View style={styles.kdsTabs}>
+          <TouchableOpacity
+            style={[styles.kdsTab, activeTab === 'pending' && styles.kdsTabActive]}
+            onPress={() => setActiveTab('pending')}
+            activeOpacity={0.8}
+          >
+            <Flame
+              size={15}
+              color={activeTab === 'pending' ? '#FFFFFF' : THEME.colors.textSecondary}
+              style={styles.tabIcon}
+            />
+            <Text style={[styles.kdsTabText, activeTab === 'pending' && styles.kdsTabTextActive]}>
+              Fila da Chapa ({pendingOrders.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.kdsTab, activeTab === 'ready' && styles.kdsTabReadyActive]}
+            onPress={() => setActiveTab('ready')}
+            activeOpacity={0.8}
+          >
+            <CheckCircle2
+              size={15}
+              color={activeTab === 'ready' ? '#FFFFFF' : THEME.colors.textSecondary}
+              style={styles.tabIcon}
+            />
+            <Text style={[styles.kdsTabText, activeTab === 'ready' && styles.kdsTabTextActive]}>
+              Prontos no Balcão ({readyOrders.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Lista de Pedidos */}
       <ScrollView
         style={styles.ordersScroll}
         contentContainerStyle={styles.ordersContent}
         showsVerticalScrollIndicator={false}
       >
-        {orders.length === 0 ? (
+        {displayedOrders.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconCircle}>
-              <ChefHat size={36} color={THEME.colors.secondary} />
+              {activeTab === 'pending' ? (
+                <ChefHat size={36} color={THEME.colors.secondary} />
+              ) : (
+                <CheckCircle2 size={36} color={THEME.colors.success} />
+              )}
             </View>
             <View style={styles.emptyTitleRow}>
-              <Text style={styles.emptyTitle}>Chapa Livre!</Text>
+              <Text style={styles.emptyTitle}>
+                {activeTab === 'pending' ? 'Chapa Livre!' : 'Nenhum Pedido Pronto'}
+              </Text>
               <Sparkles size={18} color={THEME.colors.gold} />
             </View>
             <Text style={styles.emptySubtitle}>
-              Nenhum pedido pendente na cozinha. Novos pedidos lançados no Caixa cairão aqui na hora.
+              {activeTab === 'pending'
+                ? 'Nenhum pedido pendente na cozinha. Novos pedidos lançados no Caixa cairão aqui na hora.'
+                : 'Quando o Balcão confirmar que um pedido ficou pronto, ele aparecerá aqui.'}
             </Text>
           </View>
         ) : (
-          orders.map((order) => (
+          displayedOrders.map((order) => (
             <OrderCard
               key={order.id}
               order={order}
@@ -177,6 +227,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+  },
+  kdsTabsWrapper: {
+    backgroundColor: THEME.colors.surface,
+    paddingHorizontal: THEME.spacing.lg,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.colors.surfaceBorder,
+  },
+  kdsTabs: {
+    flexDirection: 'row',
+    backgroundColor: THEME.colors.surfaceElevated,
+    borderRadius: THEME.borderRadius.md,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderSubtle,
+  },
+  kdsTab: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: THEME.borderRadius.sm,
+  },
+  kdsTabActive: {
+    backgroundColor: THEME.colors.primary,
+    shadowColor: THEME.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  kdsTabReadyActive: {
+    backgroundColor: THEME.colors.success,
+    shadowColor: THEME.colors.success,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  tabIcon: {
+    marginRight: 6,
+  },
+  kdsTabText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.colors.textSecondary,
+  },
+  kdsTabTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '900',
   },
   ordersScroll: {
     flex: 1,

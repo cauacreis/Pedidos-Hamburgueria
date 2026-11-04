@@ -87,6 +87,7 @@ export default function App() {
               orders={orders}
               onCreateOrder={(name, items) => createOrder({ customer_name: name, items })}
               onDeliverOrder={deliverOrder}
+              onUpdateStatus={updateOrderStatus}
               readyNotification={readyNotification}
               onDismissNotification={dismissNotification}
             />

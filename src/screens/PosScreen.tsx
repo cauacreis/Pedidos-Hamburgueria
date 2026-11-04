@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { ShoppingBag, Clock, Bell, CheckCircle2 } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
-import { Product, Order } from '../types/database';
+import { Product, Order, OrderStatus } from '../types/database';
 import { INITIAL_PRODUCTS, ProductsRepository } from '../db/productsRepository';
 import { getDatabase } from '../db/database';
 import { QuickMenuPicker } from '../components/QuickMenuPicker';
@@ -14,6 +14,7 @@ interface PosScreenProps {
   orders: Order[];
   onCreateOrder: (customerName: string, items: { product_id: string; quantity: number; notes?: string }[]) => Promise<Order>;
   onDeliverOrder: (orderId: string) => void;
+  onUpdateStatus?: (orderId: string, status: OrderStatus) => void;
   readyNotification: Order | null;
   onDismissNotification: () => void;
 }
@@ -22,6 +23,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   orders,
   onCreateOrder,
   onDeliverOrder,
+  onUpdateStatus,
   readyNotification,
   onDismissNotification,
 }) => {
@@ -52,13 +54,20 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       const existingIndex = prev.findIndex((item) => item.product.id === product.id);
       if (existingIndex >= 0) {
         const next = [...prev];
+        const existing = next[existingIndex];
+        const newQty = existing.quantity + 1;
+        const newUnitNotes = [...(existing.unitNotes || [existing.notes || ''])];
+        while (newUnitNotes.length < newQty) {
+          newUnitNotes.push('');
+        }
         next[existingIndex] = {
-          ...next[existingIndex],
-          quantity: next[existingIndex].quantity + 1,
+          ...existing,
+          quantity: newQty,
+          unitNotes: newUnitNotes,
         };
         return next;
       }
-      return [...prev, { product, quantity: 1, notes: '' }];
+      return [...prev, { product, quantity: 1, notes: '', unitNotes: [''] }];
     });
   };
 
@@ -75,7 +84,12 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         .map((item) => {
           if (item.product.id === productId) {
             const newQty = item.quantity + delta;
-            return newQty > 0 ? { ...item, quantity: newQty } : null;
+            if (newQty <= 0) return null;
+            const unitNotes = [...(item.unitNotes || [item.notes || ''])].slice(0, newQty);
+            while (unitNotes.length < newQty) {
+              unitNotes.push('');
+            }
+            return { ...item, quantity: newQty, unitNotes };
           }
           return item;
         })
@@ -85,7 +99,34 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
   const handleUpdateNotes = (productId: string, notes: string) => {
     setCart((prev) =>
-      prev.map((item) => (item.product.id === productId ? { ...item, notes } : item))
+      prev.map((item) => {
+        if (item.product.id === productId) {
+          const unitNotes = [...(item.unitNotes || [''])];
+          unitNotes[0] = notes;
+          return { ...item, notes, unitNotes };
+        }
+        return item;
+      })
+    );
+  };
+
+  const handleUpdateUnitNote = (productId: string, unitIndex: number, note: string) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.product.id === productId) {
+          const unitNotes = [...(item.unitNotes || [item.notes || ''])];
+          while (unitNotes.length <= unitIndex) {
+            unitNotes.push('');
+          }
+          unitNotes[unitIndex] = note;
+          return {
+            ...item,
+            unitNotes,
+            notes: unitNotes.filter(Boolean).join(' | '),
+          };
+        }
+        return item;
+      })
     );
   };
 
@@ -99,11 +140,41 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     setIsSubmitting(true);
 
     try {
-      const itemsPayload = cart.map((item) => ({
-        product_id: item.product.id,
-        quantity: item.quantity,
-        notes: item.notes,
-      }));
+      const itemsPayload: { product_id: string; quantity: number; notes?: string }[] = [];
+
+      for (const item of cart) {
+        if (item.quantity === 1) {
+          const singleNote = (item.unitNotes?.[0] ?? item.notes ?? '').trim();
+          itemsPayload.push({
+            product_id: item.product.id,
+            quantity: 1,
+            notes: singleNote,
+          });
+        } else {
+          // Quando tem mais de 1 unidade do mesmo produto
+          const hasAnyUnitNotes = item.unitNotes && item.unitNotes.some((n) => n && n.trim().length > 0);
+
+          if (hasAnyUnitNotes) {
+            // Se tiver observações específicas por lanche (ex: lanche 1 sem picles, lanche 2 bem passado),
+            // lança cada unidade separada na comanda para a cozinha ver certinho
+            for (let i = 0; i < item.quantity; i++) {
+              const uNote = (item.unitNotes?.[i] ?? '').trim();
+              itemsPayload.push({
+                product_id: item.product.id,
+                quantity: 1,
+                notes: uNote,
+              });
+            }
+          } else {
+            // Se nenhuma unidade tiver observação individual, agrupa
+            itemsPayload.push({
+              product_id: item.product.id,
+              quantity: item.quantity,
+              notes: (item.notes || '').trim(),
+            });
+          }
+        }
+      }
 
       const newOrder = await onCreateOrder(customerName, itemsPayload);
       handleClearCart();
@@ -224,6 +295,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             onChangeCustomerName={setCustomerName}
             onUpdateQuantity={handleUpdateQuantity}
             onUpdateNotes={handleUpdateNotes}
+            onUpdateUnitNote={handleUpdateUnitNote}
             onClearCart={handleClearCart}
             onSubmitOrder={handleSubmitOrder}
             onAddCombo={handleAddCombo}
@@ -248,6 +320,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 key={order.id}
                 order={order}
                 mode="pos"
+                onUpdateStatus={onUpdateStatus}
                 onDeliverOrder={onDeliverOrder}
               />
             ))
