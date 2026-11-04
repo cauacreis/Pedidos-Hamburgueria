@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: THEME.spacing.md,
     gap: 10,
     justifyContent: 'space-between',
-    paddingBottom: 110,
+    paddingBottom: 40,
     marginTop: 4,
   },
   card: {
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     borderRadius: THEME.borderRadius.lg,
     padding: 12,
     justifyContent: 'space-between',
-    minHeight: 128,
+    minHeight: 136,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

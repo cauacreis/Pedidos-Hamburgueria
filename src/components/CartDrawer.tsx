@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
-import { ShoppingBag, Minus, Plus, ChefHat, Sparkles } from 'lucide-react-native';
+import { ShoppingBag, Minus, Plus, ChefHat, Sparkles, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
 import { Product } from '../types/database';
 
@@ -36,6 +36,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onAddCombo,
   submitting = false,
 }) => {
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const total = items.reduce((acc, curr) => acc + curr.product.price * curr.quantity, 0);
   const totalItemCount = items.reduce((acc, curr) => acc + curr.quantity, 0);
   const hasBurger = items.some((i) => i.product.category === 'burger');
@@ -52,10 +53,44 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     );
   }
 
+  // Barra compacta flutuante quando o usuário recolhe para ver o cardápio inteiro
+  if (isCollapsed) {
+    return (
+      <View style={styles.collapsedContainer}>
+        <TouchableOpacity
+          style={styles.collapsedBar}
+          onPress={() => setIsCollapsed(false)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.collapsedLeft}>
+            <View style={styles.collapsedBadge}>
+              <Text style={styles.collapsedBadgeText}>{totalItemCount}</Text>
+            </View>
+            <View style={styles.collapsedTextCol}>
+              <Text style={styles.collapsedTitle}>Ver Pedido em Andamento</Text>
+              <Text style={styles.collapsedTotal}>R$ {total.toFixed(2)}</Text>
+            </View>
+          </View>
+
+          <View style={styles.collapsedBtn}>
+            <ChevronUp size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
+            <Text style={styles.collapsedBtnText}>Expandir</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Barra de Acento do Topo */}
-      <View style={styles.topAccentBar} />
+      {/* Barra de Acento do Topo com controle de toque para recolher */}
+      <TouchableOpacity
+        style={styles.topAccentArea}
+        onPress={() => setIsCollapsed(true)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.topAccentBar} />
+      </TouchableOpacity>
 
       {/* Cabeçalho do Carrinho */}
       <View style={styles.header}>
@@ -69,9 +104,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             </View>
           </View>
 
-          <TouchableOpacity onPress={onClearCart} style={styles.clearBtn} activeOpacity={0.7}>
-            <Text style={styles.clearText}>Limpar</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => setIsCollapsed(true)}
+              style={styles.collapseBtn}
+              activeOpacity={0.7}
+            >
+              <ChevronDown size={14} color={THEME.colors.textSecondary} style={{ marginRight: 2 }} />
+              <Text style={styles.collapseText}>Recolher</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={onClearCart} style={styles.clearBtn} activeOpacity={0.7}>
+              <Text style={styles.clearText}>Limpar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <TextInput
@@ -89,7 +135,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           <View key={product.id} style={styles.itemRow}>
             <View style={styles.itemTop}>
               <View style={styles.itemInfo}>
-                <Text style={styles.itemName} numberOfLines={1}>
+                <Text style={styles.itemName}>
                   {product.name}
                 </Text>
                 <Text style={styles.itemPrice}>
@@ -107,7 +153,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   onPress={() => onUpdateQuantity(product.id, -1)}
                   activeOpacity={0.7}
                 >
-                  <Minus size={13} color={THEME.colors.textPrimary} strokeWidth={3} />
+                  <Minus size={14} color={THEME.colors.textPrimary} strokeWidth={3} />
                 </TouchableOpacity>
 
                 <Text style={styles.qtyValue}>{quantity}</Text>
@@ -117,7 +163,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   onPress={() => onUpdateQuantity(product.id, 1)}
                   activeOpacity={0.7}
                 >
-                  <Plus size={13} color="#FFFFFF" strokeWidth={3} />
+                  <Plus size={14} color="#FFFFFF" strokeWidth={3} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -249,14 +295,85 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
   },
+  collapsedContainer: {
+    backgroundColor: THEME.colors.surface,
+    borderTopWidth: 1.5,
+    borderTopColor: THEME.colors.surfaceBorderHighlight,
+    paddingHorizontal: THEME.spacing.lg,
+    paddingVertical: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  collapsedBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: THEME.colors.surfaceElevated,
+    borderRadius: THEME.borderRadius.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderSubtle,
+  },
+  collapsedLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  collapsedBadge: {
+    backgroundColor: THEME.colors.primary,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  collapsedBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 13,
+  },
+  collapsedTextCol: {
+    justifyContent: 'center',
+  },
+  collapsedTitle: {
+    color: THEME.colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  collapsedTotal: {
+    color: THEME.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  collapsedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: THEME.colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: THEME.borderRadius.full,
+  },
+  collapsedBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  topAccentArea: {
+    width: '100%',
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   topAccentBar: {
     width: 48,
     height: 4,
     borderRadius: 2,
     backgroundColor: THEME.colors.primary,
-    alignSelf: 'center',
-    marginTop: 8,
-    marginBottom: 6,
   },
   header: {
     paddingHorizontal: THEME.spacing.lg,
@@ -267,6 +384,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  collapseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: THEME.colors.surfaceElevated,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: THEME.borderRadius.full,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderSubtle,
+  },
+  collapseText: {
+    fontSize: 11,
+    color: THEME.colors.textSecondary,
+    fontWeight: '700',
   },
   titleWithBadge: {
     flexDirection: 'row',
@@ -294,7 +431,7 @@ const styles = StyleSheet.create({
   },
   clearBtn: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: THEME.borderRadius.sm,
   },
   clearText: {
@@ -320,8 +457,8 @@ const styles = StyleSheet.create({
   itemRow: {
     backgroundColor: THEME.colors.surfaceElevated,
     borderRadius: THEME.borderRadius.md,
-    padding: 10,
-    marginBottom: 8,
+    padding: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: THEME.colors.surfaceBorderSubtle,
   },
@@ -335,15 +472,15 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   itemName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     color: THEME.colors.textPrimary,
+    marginBottom: 2,
   },
   itemPrice: {
     fontSize: 13,
     fontWeight: '700',
     color: THEME.colors.textSecondary,
-    marginTop: 2,
   },
   unitPriceText: {
     fontSize: 11,
@@ -360,9 +497,9 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.surfaceBorderSubtle,
   },
   qtyBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: THEME.colors.surfaceHighlight,
@@ -371,50 +508,49 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.primary,
   },
   qtyValue: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     color: THEME.colors.textPrimary,
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
   },
   notesInput: {
     backgroundColor: THEME.colors.surface,
     borderColor: THEME.colors.surfaceBorderSubtle,
     borderWidth: 1,
     borderRadius: THEME.borderRadius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    fontSize: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 13,
     color: THEME.colors.textPrimary,
-    marginTop: 6,
+    marginTop: 8,
   },
   unitNotesWrapper: {
-    marginTop: 8,
-    paddingTop: 6,
+    marginTop: 10,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: THEME.colors.surfaceBorderSubtle,
   },
   unitNotesHeading: {
     fontSize: 11,
-    fontWeight: '700',
-    color: THEME.colors.textSecondary,
-    marginBottom: 5,
+    fontWeight: '800',
+    color: THEME.colors.grillAmber,
+    marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   unitNoteRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 6,
   },
   unitIndexBadge: {
-    backgroundColor: THEME.colors.surface,
+    backgroundColor: 'rgba(190, 56, 39, 0.15)',
     borderWidth: 1,
-    borderColor: THEME.colors.surfaceBorderHighlight,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: THEME.borderRadius.sm,
-    marginRight: 6,
-    minWidth: 26,
+    borderColor: 'rgba(190, 56, 39, 0.4)',
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    marginRight: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -429,8 +565,8 @@ const styles = StyleSheet.create({
     borderColor: THEME.colors.surfaceBorderSubtle,
     borderWidth: 1,
     borderRadius: THEME.borderRadius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     fontSize: 12,
     color: THEME.colors.textPrimary,
   },

@@ -145,8 +145,9 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         )}
 
         {mode === 'pos' && (
-          <View style={styles.posFooter}>
-            <View style={styles.statusPillContainer}>
+          <View style={styles.posFooterCol}>
+            {/* Linha 1: Preço e Status com espaçamento limpo */}
+            <View style={styles.posMetaRow}>
               <View style={styles.posPriceRow}>
                 <Text style={styles.posTotalPrefix}>R$</Text>
                 <Text style={styles.posTotal}>{order.total.toFixed(2)}</Text>
@@ -177,26 +178,28 @@ export const OrderCard: React.FC<OrderCardProps> = ({
               </View>
             </View>
 
-            {/* O Balcão confirma quando fica pronto ou entrega */}
-            {order.status === 'ready' ? (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.btnDeliver]}
-                onPress={() => onDeliverOrder && onDeliverOrder(order.id)}
-                activeOpacity={0.8}
-              >
-                <Check size={16} color="#FFFFFF" style={styles.btnIcon} strokeWidth={3} />
-                <Text style={styles.btnDeliverText}>Entregar Pedido</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.btnReadyPos]}
-                onPress={() => onUpdateStatus && onUpdateStatus(order.id, 'ready')}
-                activeOpacity={0.8}
-              >
-                <CheckCircle2 size={16} color="#FFFFFF" style={styles.btnIcon} />
-                <Text style={styles.btnReadyPosText}>Marcar Pronto</Text>
-              </TouchableOpacity>
-            )}
+            {/* Linha 2: Botão de Ação Robusto e sem aperto */}
+            <View style={styles.posActionRow}>
+              {order.status === 'ready' ? (
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.btnDeliverFull]}
+                  onPress={() => onDeliverOrder && onDeliverOrder(order.id)}
+                  activeOpacity={0.8}
+                >
+                  <Check size={18} color="#FFFFFF" style={styles.btnIcon} strokeWidth={3} />
+                  <Text style={styles.btnDeliverText}>ENTREGAR AO CLIENTE</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.btnReadyPosFull]}
+                  onPress={() => onUpdateStatus && onUpdateStatus(order.id, 'ready')}
+                  activeOpacity={0.8}
+                >
+                  <CheckCircle2 size={18} color="#FFFFFF" style={styles.btnIcon} />
+                  <Text style={styles.btnReadyPosText}>CONFIRMAR PEDIDO PRONTO</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         )}
       </View>
@@ -322,27 +325,29 @@ const styles = StyleSheet.create({
   notesBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(229, 142, 38, 0.12)',
-    borderLeftWidth: 3,
+    backgroundColor: 'rgba(229, 142, 38, 0.14)',
+    borderLeftWidth: 3.5,
     borderLeftColor: THEME.colors.warning,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: THEME.borderRadius.sm,
-    marginTop: 4,
-    marginLeft: 32,
+    marginTop: 6,
+    marginLeft: 28,
   },
   notesIcon: {
-    marginRight: 5,
-    fontSize: 12,
+    marginRight: 6,
+    fontSize: 13,
   },
   notesText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
     color: THEME.colors.warning,
+    flex: 1,
+    flexWrap: 'wrap',
   },
   footer: {
-    marginTop: 6,
-    paddingTop: 8,
+    marginTop: 8,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: THEME.colors.surfaceBorderSubtle,
   },
@@ -385,47 +390,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
     borderRadius: THEME.borderRadius.md,
   },
   btnIcon: {
     marginRight: 8,
   },
-  btnReadyPos: {
-    backgroundColor: THEME.colors.success,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    shadowColor: THEME.colors.success,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 2,
+  posFooterCol: {
+    width: '100%',
   },
-  btnReadyPosText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 0.4,
-  },
-  btnDeliver: {
-    backgroundColor: THEME.colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  btnDeliverText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  posFooter: {
+  posMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  statusPillContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    marginBottom: 10,
   },
   posPriceRow: {
     flexDirection: 'row',
@@ -438,13 +415,13 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   posTotal: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '900',
     color: THEME.colors.textPrimary,
   },
   posStatusChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: THEME.borderRadius.full,
     backgroundColor: THEME.colors.surfaceElevated,
     borderWidth: 1,
@@ -462,7 +439,42 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.colors.surfaceElevated,
   },
   posStatusText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
+  },
+  posActionRow: {
+    width: '100%',
+  },
+  btnReadyPosFull: {
+    backgroundColor: THEME.colors.success,
+    width: '100%',
+    paddingVertical: 12,
+    shadowColor: THEME.colors.success,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  btnReadyPosText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  btnDeliverFull: {
+    backgroundColor: THEME.colors.primary,
+    width: '100%',
+    paddingVertical: 12,
+    shadowColor: THEME.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  btnDeliverText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
 });

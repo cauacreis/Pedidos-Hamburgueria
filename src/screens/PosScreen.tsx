@@ -280,7 +280,11 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       {/* Conteúdo Principal */}
       {activeTab === 'menu' ? (
         <View style={styles.menuContainer}>
-          <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.pickerScroll}
+            contentContainerStyle={styles.pickerScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             <QuickMenuPicker
               products={products}
               onSelectProduct={handleSelectProduct}
@@ -476,6 +480,9 @@ const styles = StyleSheet.create({
   },
   pickerScroll: {
     flex: 1,
+  },
+  pickerScrollContent: {
+    paddingBottom: 220,
   },
   ordersScroll: {
     flex: 1,

@@ -157,8 +157,8 @@ export const Header: React.FC<HeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: THEME.colors.surface,
-    paddingTop: 46,
-    paddingBottom: THEME.spacing.md,
+    paddingTop: 12,
+    paddingBottom: 10,
     paddingHorizontal: THEME.spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: THEME.colors.surfaceBorder,
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 8,
   },
   brandContainer: {
     flexDirection: 'row',
@@ -255,8 +255,8 @@ const styles = StyleSheet.create({
   tabButton: {
     flex: 1,
     flexDirection: 'row',
-    paddingVertical: 9,
-    paddingHorizontal: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: THEME.borderRadius.sm,
