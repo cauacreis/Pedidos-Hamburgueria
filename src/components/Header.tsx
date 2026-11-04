@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { ShoppingBag, ChefHat, TrendingUp, QrCode, Wifi, WifiOff } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
 import { ConnectionStatus } from '../network/types';
+
+const STATUS_BAR_CLEARANCE = Platform.OS === 'android' ? Math.max(RNStatusBar.currentHeight || 0, 34) + 12 : 12;
 
 interface HeaderProps {
   role: 'pos' | 'kds' | 'dashboard';
@@ -157,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: THEME.colors.surface,
-    paddingTop: 12,
+    paddingTop: STATUS_BAR_CLEARANCE,
     paddingBottom: 10,
     paddingHorizontal: THEME.spacing.lg,
     borderBottomWidth: 1,

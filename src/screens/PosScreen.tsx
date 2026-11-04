@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   pickerScrollContent: {
-    paddingBottom: 220,
+    paddingBottom: 100,
   },
   ordersScroll: {
     flex: 1,
