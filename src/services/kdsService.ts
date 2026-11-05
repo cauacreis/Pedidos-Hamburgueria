@@ -100,4 +100,16 @@ export class KdsService {
       return 0;
     });
   }
+
+  /**
+   * Filtra pedidos esquecidos que ultrapassaram o tempo limite de espera (X horas)
+   */
+  static filterStaleOrders(orders: Order[], staleHours: number = APP_CONFIG.ORDERS.DEFAULT_STALE_HOURS): Order[] {
+    if (!staleHours || staleHours <= 0) return orders;
+    const cutoffTimeMs = Date.now() - staleHours * 60 * 60 * 1000;
+    return orders.filter((order) => {
+      const orderTimeMs = new Date(order.created_at).getTime();
+      return orderTimeMs >= cutoffTimeMs;
+    });
+  }
 }

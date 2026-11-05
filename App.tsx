@@ -59,7 +59,11 @@ export default function App() {
     createOrder,
     updateOrderStatus,
     deliverOrder,
+    deleteOrder,
     dismissNotification,
+    staleHours,
+    updateStaleHours,
+    cleanStaleOrdersNow,
   } = useOrders({
     role,
     client: connection.client,
@@ -88,6 +92,10 @@ export default function App() {
               onCreateOrder={(name, items) => createOrder({ customer_name: name, items })}
               onDeliverOrder={deliverOrder}
               onUpdateStatus={updateOrderStatus}
+              onDeleteOrder={deleteOrder}
+              staleHours={staleHours}
+              onUpdateStaleHours={updateStaleHours}
+              onCleanStaleOrdersNow={cleanStaleOrdersNow}
               readyNotification={readyNotification}
               onDismissNotification={dismissNotification}
             />

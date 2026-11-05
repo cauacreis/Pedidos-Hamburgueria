@@ -7,6 +7,7 @@ export type WebSocketMessageType =
   | 'UPDATE_ORDER_STATUS'   // Cozinha ou Caixa atualiza status de um pedido
   | 'ORDER_STATUS_CHANGED'  // Broadcast de status atualizado para todos os clientes
   | 'ORDER_DELIVERED'       // Caixa finaliza entrega do pedido
+  | 'ORDER_DELETED'         // Pedido expirado ou excluído da fila
   | 'PING'                  // Heartbeat
   | 'PONG'                  // Resposta do Heartbeat
   | 'ACK';                  // Confirmação de recebimento
@@ -55,6 +56,15 @@ export interface OrderDeliveredMessage extends BaseSocketMessage {
   };
 }
 
+export interface OrderDeletedMessage extends BaseSocketMessage {
+  type: 'ORDER_DELETED';
+  payload: {
+    order_id?: string;
+    order_ids?: string[];
+    deleted_at: string;
+  };
+}
+
 export interface PingMessage extends BaseSocketMessage {
   type: 'PING';
 }
@@ -75,6 +85,7 @@ export type SocketMessage =
   | UpdateOrderStatusMessage
   | OrderStatusChangedMessage
   | OrderDeliveredMessage
+  | OrderDeletedMessage
   | PingMessage
   | PongMessage
   | AckMessage;

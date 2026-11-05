@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { ShoppingBag, Clock, Bell, CheckCircle2 } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
+import { ShoppingBag, Clock, Bell, CheckCircle2, Trash2 } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
 import { Product, Order, OrderStatus } from '../types/database';
 import { INITIAL_PRODUCTS, ProductsRepository } from '../db/productsRepository';
@@ -15,6 +15,10 @@ interface PosScreenProps {
   onCreateOrder: (customerName: string, items: { product_id: string; quantity: number; notes?: string }[]) => Promise<Order>;
   onDeliverOrder: (orderId: string) => void;
   onUpdateStatus?: (orderId: string, status: OrderStatus) => void;
+  onDeleteOrder?: (orderId: string) => void;
+  staleHours?: number;
+  onUpdateStaleHours?: (hours: number) => void;
+  onCleanStaleOrdersNow?: () => Promise<string[]>;
   readyNotification: Order | null;
   onDismissNotification: () => void;
 }
@@ -24,6 +28,10 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   onCreateOrder,
   onDeliverOrder,
   onUpdateStatus,
+  onDeleteOrder,
+  staleHours = 2,
+  onUpdateStaleHours,
+  onCleanStaleOrdersNow,
   readyNotification,
   onDismissNotification,
 }) => {
@@ -33,6 +41,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const [activeTab, setActiveTab] = useState<'menu' | 'active_orders'>('menu');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isMenuManagerVisible, setIsMenuManagerVisible] = useState<boolean>(false);
+  const [isStaleModalVisible, setIsStaleModalVisible] = useState<boolean>(false);
 
   const loadProducts = async () => {
     try {
@@ -307,29 +316,56 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           />
         </View>
       ) : (
-        <ScrollView style={styles.ordersScroll} contentContainerStyle={styles.ordersContent} showsVerticalScrollIndicator={false}>
-          {activeOrders.length === 0 ? (
-            <View style={styles.emptyOrdersBox}>
-              <View style={styles.emptyIconCircle}>
-                <CheckCircle2 size={32} color={THEME.colors.secondary} />
-              </View>
-              <Text style={styles.emptyOrdersTitle}>Nenhum pedido em andamento</Text>
-              <Text style={styles.emptyOrdersText}>
-                Todos os pedidos foram entregues. Novos pedidos lançados no cardápio aparecerão aqui.
+        <View style={styles.activeOrdersWrapper}>
+          <View style={styles.activeOrdersHeaderBar}>
+            <View style={styles.activeOrdersHeaderLeft}>
+              <Text style={styles.activeOrdersHeading}>Fila de Pedidos</Text>
+              <Text style={styles.activeOrdersCountSub}>
+                {activeOrders.length} {activeOrders.length === 1 ? 'pedido ativo' : 'pedidos ativos'}
               </Text>
             </View>
-          ) : (
-            activeOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                mode="pos"
-                onUpdateStatus={onUpdateStatus}
-                onDeliverOrder={onDeliverOrder}
-              />
-            ))
-          )}
-        </ScrollView>
+
+            {onUpdateStaleHours && (
+              <TouchableOpacity
+                style={styles.staleFilterBtn}
+                onPress={() => setIsStaleModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                <Clock size={12} color={THEME.colors.gold} style={{ marginRight: 5 }} />
+                <Text style={styles.staleFilterText}>Auto-reset: {staleHours}h</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <ScrollView
+            style={styles.ordersScroll}
+            contentContainerStyle={styles.ordersContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {activeOrders.length === 0 ? (
+              <View style={styles.emptyOrdersBox}>
+                <View style={styles.emptyIconCircle}>
+                  <CheckCircle2 size={32} color={THEME.colors.secondary} />
+                </View>
+                <Text style={styles.emptyOrdersTitle}>Nenhum pedido em andamento</Text>
+                <Text style={styles.emptyOrdersText}>
+                  Todos os pedidos foram entregues. Novos pedidos lançados no cardápio aparecerão aqui.
+                </Text>
+              </View>
+            ) : (
+              activeOrders.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  mode="pos"
+                  onUpdateStatus={onUpdateStatus}
+                  onDeliverOrder={onDeliverOrder}
+                  onDeleteOrder={onDeleteOrder}
+                />
+              ))
+            )}
+          </ScrollView>
+        </View>
       )}
 
       {/* Modal de Gerenciamento do Cardápio */}
@@ -339,6 +375,88 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         products={products}
         onProductsUpdated={loadProducts}
       />
+
+      {/* Modal de Configuração de Auto-Reset de Pedidos Esquecidos */}
+      <Modal
+        visible={isStaleModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsStaleModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.staleModalBackdrop}
+          activeOpacity={1}
+          onPress={() => setIsStaleModalVisible(false)}
+        >
+          <View style={styles.staleModalCard}>
+            <View style={styles.staleModalHeader}>
+              <View style={styles.staleModalIconRing}>
+                <Clock size={22} color={THEME.colors.gold} />
+              </View>
+              <Text style={styles.staleModalTitle}>Limpeza Automática da Fila</Text>
+              <Text style={styles.staleModalDesc}>
+                Pedidos esquecidos na espera por mais de {staleHours} horas sem finalização são deletados automaticamente para não acumular na tela.
+              </Text>
+            </View>
+
+            <Text style={styles.staleSectionLabel}>TEMPO LIMITE DE ESPERA:</Text>
+            <View style={styles.staleOptionsRow}>
+              {[1, 2, 3, 4, 6].map((h) => {
+                const isSelected = staleHours === h;
+                return (
+                  <TouchableOpacity
+                    key={h}
+                    style={[styles.staleOptionPill, isSelected && styles.staleOptionPillActive]}
+                    onPress={() => {
+                      if (onUpdateStaleHours) {
+                        onUpdateStaleHours(h);
+                      }
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.staleOptionPillText,
+                        isSelected && styles.staleOptionPillTextActive,
+                      ]}
+                    >
+                      {h}h
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {onCleanStaleOrdersNow && (
+              <TouchableOpacity
+                style={styles.cleanNowBtn}
+                onPress={async () => {
+                  const cleaned = await onCleanStaleOrdersNow();
+                  Alert.alert(
+                    'Limpeza Concluída',
+                    cleaned.length > 0
+                      ? `${cleaned.length} pedido(s) esquecido(s) foram removidos da fila.`
+                      : 'Nenhum pedido com mais de ' + staleHours + 'h na fila.'
+                  );
+                  setIsStaleModalVisible(false);
+                }}
+                activeOpacity={0.85}
+              >
+                <Trash2 size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.cleanNowBtnText}>Limpar Pedidos Esquecidos Agora</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.closeStaleModalBtn}
+              onPress={() => setIsStaleModalVisible(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.closeStaleModalText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -483,6 +601,156 @@ const styles = StyleSheet.create({
   },
   pickerScrollContent: {
     paddingBottom: 100,
+  },
+  activeOrdersWrapper: {
+    flex: 1,
+  },
+  activeOrdersHeaderBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: THEME.spacing.lg,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  activeOrdersHeaderLeft: {
+    justifyContent: 'center',
+  },
+  activeOrdersHeading: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: THEME.colors.textPrimary,
+    letterSpacing: 0.5,
+  },
+  activeOrdersCountSub: {
+    fontSize: 11,
+    color: THEME.colors.textMuted,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  staleFilterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: THEME.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderHighlight,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: THEME.borderRadius.full,
+  },
+  staleFilterText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: THEME.colors.gold,
+  },
+
+  /* Modal de Auto-Reset */
+  staleModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  staleModalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: THEME.colors.surface,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: THEME.colors.surfaceBorderHighlight,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  staleModalHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  staleModalIconRing: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(229, 169, 60, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(229, 169, 60, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  staleModalTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: THEME.colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  staleModalDesc: {
+    fontSize: 12,
+    color: THEME.colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+  staleSectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: THEME.colors.secondary,
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  staleOptionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 6,
+    marginBottom: 18,
+  },
+  staleOptionPill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: THEME.borderRadius.md,
+    backgroundColor: THEME.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorderSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  staleOptionPillActive: {
+    backgroundColor: THEME.colors.primary,
+    borderColor: THEME.colors.primary,
+  },
+  staleOptionPillText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: THEME.colors.textSecondary,
+  },
+  staleOptionPillTextActive: {
+    color: '#FFFFFF',
+  },
+  cleanNowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: THEME.colors.danger,
+    paddingVertical: 12,
+    borderRadius: THEME.borderRadius.md,
+    marginBottom: 10,
+  },
+  cleanNowBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  closeStaleModalBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  closeStaleModalText: {
+    color: THEME.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   ordersScroll: {
     flex: 1,

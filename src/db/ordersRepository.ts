@@ -144,14 +144,21 @@ export class OrdersRepository {
 
   /**
    * Busca pedidos ativos para a fila de cozinha (queued, preparing, ready)
+   * Se staleHours for informado, filtra pedidos que estão esperando há mais de X horas
    */
-  static async getActiveKitchenOrders(): Promise<Order[]> {
+  static async getActiveKitchenOrders(staleHours?: number): Promise<Order[]> {
     const db = await getDatabase();
-    const orders = await db.getAllAsync<any>(
-      `SELECT * FROM orders
-       WHERE status IN ('queued', 'preparing', 'ready')
-       ORDER BY created_at ASC`
-    );
+    let query = `SELECT * FROM orders WHERE status IN ('queued', 'preparing', 'ready')`;
+    const params: any[] = [];
+
+    if (staleHours && staleHours > 0) {
+      const cutoffDate = new Date(Date.now() - staleHours * 60 * 60 * 1000).toISOString();
+      query += ` AND created_at >= ?`;
+      params.push(cutoffDate);
+    }
+
+    query += ` ORDER BY created_at ASC`;
+    const orders = await db.getAllAsync<any>(query, params);
 
     const fullOrders: Order[] = [];
     for (const ord of orders) {
@@ -169,6 +176,49 @@ export class OrdersRepository {
     }
 
     return fullOrders;
+  }
+
+  /**
+   * Deleta pedidos que ficaram na espera por mais de X horas (queued, preparing, ready).
+   * Retorna os IDs dos pedidos deletados para sincronização em tempo real.
+   */
+  static async deleteStaleOrders(staleHours: number = 2): Promise<string[]> {
+    const db = await getDatabase();
+    const cutoffDate = new Date(Date.now() - staleHours * 60 * 60 * 1000).toISOString();
+
+    const staleRows = await db.getAllAsync<{ id: string }>(
+      `SELECT id FROM orders 
+       WHERE status IN ('queued', 'preparing', 'ready') 
+       AND created_at < ?`,
+      [cutoffDate]
+    );
+
+    if (!staleRows || staleRows.length === 0) {
+      return [];
+    }
+
+    const staleIds = staleRows.map((r) => r.id);
+
+    await db.withTransactionAsync(async () => {
+      for (const id of staleIds) {
+        await db.runAsync(`DELETE FROM order_items WHERE order_id = ?`, [id]);
+        await db.runAsync(`DELETE FROM orders WHERE id = ?`, [id]);
+      }
+    });
+
+    return staleIds;
+  }
+
+  /**
+   * Deleta um pedido específico da base local e seus itens
+   */
+  static async deleteOrder(orderId: string): Promise<boolean> {
+    const db = await getDatabase();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(`DELETE FROM order_items WHERE order_id = ?`, [orderId]);
+      await db.runAsync(`DELETE FROM orders WHERE id = ?`, [orderId]);
+    });
+    return true;
   }
 
   /**

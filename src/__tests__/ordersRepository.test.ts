@@ -88,4 +88,49 @@ describe('OrdersRepository - Local SQLite Transactions & Daily Numbers', () => {
     const nextNumber = await OrdersRepository.getNextDailyNumber();
     expect(nextNumber).toBe(defaultCustOrder.daily_number + 1);
   });
+
+  it('deletes a single order and its items by id', async () => {
+    const order = await OrdersRepository.createOrder({
+      customer_name: 'Para Cancelar',
+      items: [{ product_id: 'prod-burger-1-carne', quantity: 1 }],
+    });
+
+    expect(await OrdersRepository.getOrderById(order.id)).not.toBeNull();
+
+    const deleted = await OrdersRepository.deleteOrder(order.id);
+    expect(deleted).toBe(true);
+
+    expect(await OrdersRepository.getOrderById(order.id)).toBeNull();
+  });
+
+  it('deletes stale orders older than X hours and leaves recent orders intact', async () => {
+    // Pedido antigo (criado há 4 horas)
+    const oldOrder = await OrdersRepository.createOrder({
+      customer_name: 'Esquecido Há 4h',
+      items: [{ product_id: 'prod-burger-1-carne', quantity: 1 }],
+    });
+    // Forçar created_at para 4 horas atrás
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+    const db = await inMemoryDriver;
+    const rawOrder = inMemoryDriver['orders'].get(oldOrder.id);
+    if (rawOrder) {
+      rawOrder.created_at = fourHoursAgo;
+      inMemoryDriver['orders'].set(oldOrder.id, rawOrder);
+    }
+
+    // Pedido recente (criado agora)
+    const recentOrder = await OrdersRepository.createOrder({
+      customer_name: 'Recente 10min',
+      items: [{ product_id: 'prod-burger-2-carnes', quantity: 1 }],
+    });
+
+    // Deletar pedidos com mais de 2 horas
+    const deletedIds = await OrdersRepository.deleteStaleOrders(2);
+    expect(deletedIds).toContain(oldOrder.id);
+    expect(deletedIds).not.toContain(recentOrder.id);
+
+    // Verificar que o antigo sumiu e o recente continua ativo
+    expect(await OrdersRepository.getOrderById(oldOrder.id)).toBeNull();
+    expect(await OrdersRepository.getOrderById(recentOrder.id)).not.toBeNull();
+  });
 });

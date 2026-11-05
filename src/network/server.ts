@@ -1,5 +1,12 @@
 import { Platform } from 'react-native';
-import { SocketMessage, NewOrderMessage, OrderStatusChangedMessage, InitialSyncMessage, UpdateOrderStatusMessage } from '../types/events';
+import {
+  SocketMessage,
+  NewOrderMessage,
+  OrderStatusChangedMessage,
+  InitialSyncMessage,
+  UpdateOrderStatusMessage,
+  OrderDeletedMessage,
+} from '../types/events';
 import { Order, OrderStatus } from '../types/database';
 import { OrdersRepository } from '../db/ordersRepository';
 import { ServerStatus } from './types';
@@ -184,6 +191,23 @@ export class PosWebSocketServer {
         order_id: orderId,
         status,
         updated_at: new Date().toISOString(),
+      },
+    };
+    this.broadcast(msg);
+  }
+
+  /**
+   * Dispara evento de pedidos excluídos/resetados por tempo de espera para todas as cozinhas
+   */
+  public broadcastOrderDeleted(orderIds: string[]): void {
+    if (!orderIds || orderIds.length === 0) return;
+    const msg: OrderDeletedMessage = {
+      id: `del_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      timestamp: Date.now(),
+      type: 'ORDER_DELETED',
+      payload: {
+        order_ids: orderIds,
+        deleted_at: new Date().toISOString(),
       },
     };
     this.broadcast(msg);

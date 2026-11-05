@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Flame, CheckCircle2, Clock, Check } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Flame, CheckCircle2, Clock, Check, Trash2 } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
 import { Order, OrderStatus } from '../types/database';
 import { KdsService } from '../services/kdsService';
@@ -10,6 +10,7 @@ interface OrderCardProps {
   mode: 'kds' | 'pos';
   onUpdateStatus?: (orderId: string, newStatus: OrderStatus) => void;
   onDeliverOrder?: (orderId: string) => void;
+  onDeleteOrder?: (orderId: string) => void;
 }
 
 export const OrderCard: React.FC<OrderCardProps> = ({
@@ -17,6 +18,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   mode,
   onUpdateStatus,
   onDeliverOrder,
+  onDeleteOrder,
 }) => {
   const waitMetrics = KdsService.calculateWaitMetrics(order);
 
@@ -146,35 +148,60 @@ export const OrderCard: React.FC<OrderCardProps> = ({
 
         {mode === 'pos' && (
           <View style={styles.posFooterCol}>
-            {/* Linha 1: Preço e Status com espaçamento limpo */}
+            {/* Linha 1: Preço, Status e Ação de Excluir */}
             <View style={styles.posMetaRow}>
               <View style={styles.posPriceRow}>
                 <Text style={styles.posTotalPrefix}>R$</Text>
                 <Text style={styles.posTotal}>{order.total.toFixed(2)}</Text>
               </View>
 
-              <View
-                style={[
-                  styles.posStatusChip,
-                  order.status === 'ready' && styles.posStatusReady,
-                  order.status === 'preparing' && styles.posStatusPreparing,
-                  order.status === 'queued' && styles.posStatusQueued,
-                ]}
-              >
-                <Text
+              <View style={styles.posMetaRightRow}>
+                <View
                   style={[
-                    styles.posStatusText,
-                    order.status === 'ready' && { color: THEME.colors.success },
-                    order.status === 'preparing' && { color: THEME.colors.warning },
-                    order.status === 'queued' && { color: THEME.colors.textMuted },
-                    order.status === 'delivered' && { color: THEME.colors.info },
+                    styles.posStatusChip,
+                    order.status === 'ready' && styles.posStatusReady,
+                    order.status === 'preparing' && styles.posStatusPreparing,
+                    order.status === 'queued' && styles.posStatusQueued,
                   ]}
                 >
-                  {order.status === 'queued' && 'Na Fila'}
-                  {order.status === 'preparing' && 'Na Chapa'}
-                  {order.status === 'ready' && 'Pronto para Retirada'}
-                  {order.status === 'delivered' && 'Entregue'}
-                </Text>
+                  <Text
+                    style={[
+                      styles.posStatusText,
+                      order.status === 'ready' && { color: THEME.colors.success },
+                      order.status === 'preparing' && { color: THEME.colors.warning },
+                      order.status === 'queued' && { color: THEME.colors.textMuted },
+                      order.status === 'delivered' && { color: THEME.colors.info },
+                    ]}
+                  >
+                    {order.status === 'queued' && 'Na Fila'}
+                    {order.status === 'preparing' && 'Na Chapa'}
+                    {order.status === 'ready' && 'Pronto para Retirada'}
+                    {order.status === 'delivered' && 'Entregue'}
+                  </Text>
+                </View>
+
+                {onDeleteOrder && (
+                  <TouchableOpacity
+                    style={styles.posDeleteBtn}
+                    onPress={() => {
+                      Alert.alert(
+                        'Excluir Pedido da Fila',
+                        `Deseja remover o pedido #${String(order.daily_number).padStart(2, '0')} (${order.customer_name || 'Balcão'})?`,
+                        [
+                          { text: 'Cancelar', style: 'cancel' },
+                          {
+                            text: 'Sim, Excluir',
+                            style: 'destructive',
+                            onPress: () => onDeleteOrder(order.id),
+                          },
+                        ]
+                      );
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Trash2 size={15} color={THEME.colors.danger} />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -407,6 +434,21 @@ const styles = StyleSheet.create({
   posPriceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
+  },
+  posMetaRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  posDeleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(217, 83, 79, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 83, 79, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   posTotalPrefix: {
     fontSize: 12,

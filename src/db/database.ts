@@ -83,7 +83,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
   }
 
   async runAsync(sql: string, params: any[] = []): Promise<{ lastInsertRowId: number; changes: number }> {
-    const trimmed = sql.trim().toUpperCase();
+    const trimmed = sql.replace(/\s+/g, ' ').trim().toUpperCase();
 
     if (trimmed.includes('INTO PRODUCTS')) {
       const [id, name, price, patty_count, category, description] = params;
@@ -192,9 +192,35 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
     }
 
     if (trimmed.startsWith('DELETE FROM ORDERS')) {
+      if (trimmed.includes('WHERE ID = ?')) {
+        const id = params[0];
+        const deleted = this.orders.delete(id);
+        this.saveToStorage();
+        return { lastInsertRowId: 0, changes: deleted ? 1 : 0 };
+      }
       const count = this.orders.size;
       this.orders.clear();
       this.orderItems.clear();
+      this.saveToStorage();
+      return { lastInsertRowId: 0, changes: count };
+    }
+
+    if (trimmed.startsWith('DELETE FROM ORDER_ITEMS')) {
+      if (trimmed.includes('WHERE ORDER_ID = ?')) {
+        const orderId = params[0];
+        let count = 0;
+        for (const [key, item] of Array.from(this.orderItems.entries())) {
+          if (item.order_id === orderId) {
+            this.orderItems.delete(key);
+            count++;
+          }
+        }
+        this.saveToStorage();
+        return { lastInsertRowId: 0, changes: count };
+      }
+      const count = this.orderItems.size;
+      this.orderItems.clear();
+      this.saveToStorage();
       return { lastInsertRowId: 0, changes: count };
     }
 
@@ -202,7 +228,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
   }
 
   async getAllAsync<T>(sql: string, params: any[] = []): Promise<T[]> {
-    const trimmed = sql.trim().toUpperCase();
+    const trimmed = sql.replace(/\s+/g, ' ').trim().toUpperCase();
 
     if (trimmed.includes('FROM PRODUCTS')) {
       if (trimmed.includes('WHERE ID = ?')) {
@@ -263,9 +289,16 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
     }
 
     if (trimmed.includes('FROM ORDERS WHERE STATUS IN')) {
-      const active = Array.from(this.orders.values()).filter(
+      let active = Array.from(this.orders.values()).filter(
         (o) => o.status === 'queued' || o.status === 'preparing' || o.status === 'ready'
       );
+      if (trimmed.includes('CREATED_AT < ?') && params.length > 0) {
+        const cutoff = params[0];
+        active = active.filter((o) => o.created_at < cutoff);
+      } else if (trimmed.includes('CREATED_AT >= ?') && params.length > 0) {
+        const cutoff = params[0];
+        active = active.filter((o) => o.created_at >= cutoff);
+      }
       return active.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) as unknown as T[];
     }
 
@@ -291,7 +324,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
   }
 
   async getFirstAsync<T>(sql: string, params: any[] = []): Promise<T | null> {
-    const trimmed = sql.trim().toUpperCase();
+    const trimmed = sql.replace(/\s+/g, ' ').trim().toUpperCase();
 
     if (trimmed.includes('MAX(DAILY_NUMBER)') && trimmed.includes('DATE(CREATED_AT')) {
       const today = params[0];
