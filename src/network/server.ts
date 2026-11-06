@@ -87,10 +87,19 @@ export class PosWebSocketServer {
     }
 
     try {
-      // Tentar inicializar servidor WS nativo/Node
-      const WebSocket = require('ws');
-      if (WebSocket && WebSocket.Server) {
-        this.server = new WebSocket.Server({ port: this.port });
+      // No ambiente Node/Jest carrega dinamicamente sem acionar o bundler do Metro no mobile
+      let WebSocketModule: any = null;
+      if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+        try {
+          const req = typeof (globalThis as any).__webpack_require__ === 'function' ? null : eval('require');
+          if (req) {
+            WebSocketModule = req('ws');
+          }
+        } catch {}
+      }
+
+      if (WebSocketModule && WebSocketModule.Server) {
+        this.server = new WebSocketModule.Server({ port: this.port });
 
         this.server.on('connection', async (wsClient: any) => {
           this.clients.add(wsClient);
