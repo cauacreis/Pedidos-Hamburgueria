@@ -289,8 +289,13 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
     }
 
     if (trimmed.includes('FROM ORDERS WHERE STATUS IN')) {
+      const includeDelivered = trimmed.includes("'DELIVERED'");
       let active = Array.from(this.orders.values()).filter(
-        (o) => o.status === 'queued' || o.status === 'preparing' || o.status === 'ready'
+        (o) =>
+          o.status === 'queued' ||
+          o.status === 'preparing' ||
+          o.status === 'ready' ||
+          (includeDelivered && o.status === 'delivered')
       );
       if (trimmed.includes('CREATED_AT < ?') && params.length > 0) {
         const cutoff = params[0];

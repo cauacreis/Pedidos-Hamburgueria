@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, LayoutChangeEvent } from 'react-native';
 import { QrCode, ChefHat, Sparkles, Flame, CheckCircle2 } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
 import { Order, OrderStatus } from '../types/database';
@@ -7,6 +7,7 @@ import { ConnectionStatus } from '../network/types';
 import { PattyCounter } from '../components/PattyCounter';
 import { OrderCard } from '../components/OrderCard';
 import { usePattyCount } from '../hooks/usePattyCount';
+import { KdsService } from '../services/kdsService';
 
 interface KdsScreenProps {
   orders: Order[];
@@ -23,11 +24,52 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
 }) => {
   const pattySummary = usePattyCount(orders);
   const isDisconnected = connectionStatus === 'disconnected';
-  const [activeTab, setActiveTab] = useState<'pending' | 'ready'>('pending');
 
-  // Separar pedidos ativos para preparo (Fila da Cozinha) vs Prontos confirmados pelo Balcão
-  const pendingOrders = orders.filter((o) => o.status === 'queued' || o.status === 'preparing');
-  const readyOrders = orders.filter((o) => o.status === 'ready');
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const cardPositionsRef = useRef<Record<string, number>>({});
+  const [viewportHeight, setViewportHeight] = useState<number>(0);
+  const [contentHeight, setContentHeight] = useState<number>(0);
+  const [layoutVersion, setLayoutVersion] = useState<number>(0);
+
+  // Lista contínua: pedidos confirmados/entregues no topo e pendentes logo abaixo
+  // Os pedidos nunca somem quando confirmados; a lista rola automaticamente para o primeiro pendente
+  const sortedOrders = useMemo(() => KdsService.sortOrdersForAutoScroll(orders), [orders]);
+
+  const pendingOrders = useMemo(
+    () => sortedOrders.filter((o) => !KdsService.isOrderConfirmed(o)),
+    [sortedOrders]
+  );
+  const confirmedOrders = useMemo(
+    () => sortedOrders.filter((o) => KdsService.isOrderConfirmed(o)),
+    [sortedOrders]
+  );
+
+  // Chave que representa mudanças de fila/status para disparar rolagem automática sem toque
+  const queueSignature = useMemo(
+    () => sortedOrders.map((o) => `${o.id}:${o.status}`).join('|'),
+    [sortedOrders]
+  );
+
+  const scrollToActiveQueue = useCallback(() => {
+    if (!scrollViewRef.current || viewportHeight <= 0 || contentHeight <= 0) return;
+
+    const targetY = KdsService.calculateAutoScrollOffset(
+      sortedOrders,
+      cardPositionsRef.current,
+      contentHeight,
+      viewportHeight
+    );
+
+    scrollViewRef.current.scrollTo({ y: targetY, animated: true });
+  }, [sortedOrders, contentHeight, viewportHeight]);
+
+  // Rola automaticamente sempre que um pedido for confirmado no Balcão, novo pedido chegar ou layout mudar
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToActiveQueue();
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [queueSignature, layoutVersion, contentHeight, viewportHeight, scrollToActiveQueue]);
 
   // Atualização periódica dos minutos de espera e cores de urgência em tempo real
   const [, setTick] = useState<number>(0);
@@ -38,6 +80,14 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
 
     return () => clearInterval(intervalId);
   }, []);
+
+  const handleCardLayout = (orderId: string, event: LayoutChangeEvent) => {
+    const y = event.nativeEvent.layout.y;
+    if (cardPositionsRef.current[orderId] !== y) {
+      cardPositionsRef.current[orderId] = y;
+      setLayoutVersion((v) => v + 1);
+    }
+  };
 
   if (isDisconnected) {
     return (
@@ -65,83 +115,78 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
     );
   }
 
-  const displayedOrders = activeTab === 'pending' ? pendingOrders : readyOrders;
-
   return (
     <View style={styles.container}>
       {/* Módulo Superior: Controle de Chapa / Carnes */}
       <PattyCounter summary={pattySummary} />
 
-      {/* Seletor de Fila da Cozinha: Fila de Preparo vs Prontos no Balcão */}
+      {/* Painel de Status Contínuo (Sem necessidade de toque pelo cozinheiro) */}
       <View style={styles.kdsTabsWrapper}>
         <View style={styles.kdsTabs}>
           <TouchableOpacity
-            style={[styles.kdsTab, activeTab === 'pending' && styles.kdsTabActive]}
-            onPress={() => setActiveTab('pending')}
+            style={[styles.kdsTab, styles.kdsTabActive]}
+            onPress={scrollToActiveQueue}
             activeOpacity={0.8}
           >
-            <Flame
-              size={15}
-              color={activeTab === 'pending' ? '#FFFFFF' : THEME.colors.textSecondary}
-              style={styles.tabIcon}
-            />
-            <Text style={[styles.kdsTabText, activeTab === 'pending' && styles.kdsTabTextActive]}>
-              Fila da Chapa ({pendingOrders.length})
+            <Flame size={15} color="#FFFFFF" style={styles.tabIcon} />
+            <Text style={[styles.kdsTabText, styles.kdsTabTextActive]}>
+              Na Fila ({pendingOrders.length})
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.kdsTab, activeTab === 'ready' && styles.kdsTabReadyActive]}
-            onPress={() => setActiveTab('ready')}
+            style={[styles.kdsTab, confirmedOrders.length > 0 && styles.kdsTabDoneIndicator]}
+            onPress={() => scrollViewRef.current?.scrollTo({ y: 0, animated: true })}
             activeOpacity={0.8}
           >
             <CheckCircle2
               size={15}
-              color={activeTab === 'ready' ? '#FFFFFF' : THEME.colors.textSecondary}
+              color={confirmedOrders.length > 0 ? THEME.colors.success : THEME.colors.textSecondary}
               style={styles.tabIcon}
             />
-            <Text style={[styles.kdsTabText, activeTab === 'ready' && styles.kdsTabTextActive]}>
-              Prontos no Balcão ({readyOrders.length})
+            <Text
+              style={[
+                styles.kdsTabText,
+                confirmedOrders.length > 0 && { color: THEME.colors.success, fontWeight: '800' },
+              ]}
+            >
+              Entregues ({confirmedOrders.length})
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Lista de Pedidos */}
+      {/* Lista Única de Pedidos com Rolagem Automática */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.ordersScroll}
         contentContainerStyle={styles.ordersContent}
         showsVerticalScrollIndicator={false}
+        onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+        onContentSizeChange={(_, h) => setContentHeight(h)}
       >
-        {displayedOrders.length === 0 ? (
+        {sortedOrders.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconCircle}>
-              {activeTab === 'pending' ? (
-                <ChefHat size={36} color={THEME.colors.secondary} />
-              ) : (
-                <CheckCircle2 size={36} color={THEME.colors.success} />
-              )}
+              <ChefHat size={36} color={THEME.colors.secondary} />
             </View>
             <View style={styles.emptyTitleRow}>
-              <Text style={styles.emptyTitle}>
-                {activeTab === 'pending' ? 'Chapa Livre!' : 'Nenhum Pedido Pronto'}
-              </Text>
+              <Text style={styles.emptyTitle}>Chapa Livre!</Text>
               <Sparkles size={18} color={THEME.colors.gold} />
             </View>
             <Text style={styles.emptySubtitle}>
-              {activeTab === 'pending'
-                ? 'Nenhum pedido pendente na cozinha. Novos pedidos lançados no Caixa cairão aqui na hora.'
-                : 'Quando o Balcão confirmar que um pedido ficou pronto, ele aparecerá aqui.'}
+              Nenhum pedido na cozinha no momento. Novos pedidos lançados no Caixa cairão aqui na hora.
             </Text>
           </View>
         ) : (
-          displayedOrders.map((order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              mode="kds"
-              onUpdateStatus={onUpdateStatus}
-            />
+          sortedOrders.map((order) => (
+            <View key={order.id} onLayout={(e) => handleCardLayout(order.id, e)}>
+              <OrderCard
+                order={order}
+                mode="kds"
+                onUpdateStatus={onUpdateStatus}
+              />
+            </View>
           ))
         )}
       </ScrollView>
@@ -266,6 +311,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 5,
     elevation: 2,
+  },
+  kdsTabDoneIndicator: {
+    backgroundColor: THEME.colors.successLight,
+    borderWidth: 1,
+    borderColor: THEME.colors.successBorder,
   },
   tabIcon: {
     marginRight: 6,

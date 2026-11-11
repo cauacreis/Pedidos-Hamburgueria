@@ -143,12 +143,13 @@ export class OrdersRepository {
   }
 
   /**
-   * Busca pedidos ativos para a fila de cozinha (queued, preparing, ready)
-   * Se staleHours for informado, filtra pedidos que estão esperando há mais de X horas
+   * Busca pedidos da fila da cozinha (queued, preparing, ready, delivered)
+   * Os pedidos entregues/prontos permanecem no histórico visual da tela da cozinha.
+   * Se staleHours for informado, filtra pedidos da janela ativa de X horas.
    */
   static async getActiveKitchenOrders(staleHours?: number): Promise<Order[]> {
     const db = await getDatabase();
-    let query = `SELECT * FROM orders WHERE status IN ('queued', 'preparing', 'ready')`;
+    let query = `SELECT * FROM orders WHERE status IN ('queued', 'preparing', 'ready', 'delivered')`;
     const params: any[] = [];
 
     if (staleHours && staleHours > 0) {

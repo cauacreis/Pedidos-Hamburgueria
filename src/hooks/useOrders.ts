@@ -84,7 +84,7 @@ export function useOrders({ role, client, server }: UseOrdersProps) {
       if (role === 'kds') {
         const active = await OrdersRepository.getActiveKitchenOrders(staleHours);
         const filtered = KdsService.filterStaleOrders(active, staleHours);
-        setOrders(KdsService.sortKdsOrders(filtered));
+        setOrders(KdsService.sortOrdersForAutoScroll(filtered));
       } else {
         await OrdersRepository.deleteStaleOrders(staleHours);
         const all = await OrdersRepository.getAllOrders();
@@ -131,21 +131,19 @@ export function useOrders({ role, client, server }: UseOrdersProps) {
         if (msg.type === 'INITIAL_SYNC') {
           const syncPayload = (msg as InitialSyncMessage).payload;
           const filtered = KdsService.filterStaleOrders(syncPayload.orders, staleHours);
-          setOrders(KdsService.sortKdsOrders(filtered));
+          setOrders(KdsService.sortOrdersForAutoScroll(filtered));
         } else if (msg.type === 'NEW_ORDER') {
           const newOrder = (msg as NewOrderMessage).payload;
           setOrders((prev) => {
             const exists = prev.some((o) => o.id === newOrder.id);
             if (exists) return prev;
-            return KdsService.sortKdsOrders([...prev, newOrder]);
+            return KdsService.sortOrdersForAutoScroll([...prev, newOrder]);
           });
         } else if (msg.type === 'ORDER_STATUS_CHANGED') {
           const { order_id, status } = (msg as OrderStatusChangedMessage).payload;
           setOrders((prev) => {
-            const updated = prev
-              .map((o) => (o.id === order_id ? { ...o, status } : o))
-              .filter((o) => o.status !== 'delivered');
-            return KdsService.sortKdsOrders(updated);
+            const updated = prev.map((o) => (o.id === order_id ? { ...o, status } : o));
+            return KdsService.sortOrdersForAutoScroll(updated);
           });
         } else if (msg.type === 'ORDER_DELETED') {
           const { order_id, order_ids } = (msg as OrderDeletedMessage).payload;
@@ -211,7 +209,7 @@ export function useOrders({ role, client, server }: UseOrdersProps) {
       setOrders((prev) => {
         const next = prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o));
         return role === 'kds'
-          ? KdsService.sortKdsOrders(next.filter((o) => o.status !== 'delivered'))
+          ? KdsService.sortOrdersForAutoScroll(next)
           : next;
       });
 

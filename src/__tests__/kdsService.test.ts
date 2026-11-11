@@ -179,4 +179,43 @@ describe('KdsService - Grill Meat Counter & Queue Prioritization', () => {
     const metrics = KdsService.calculateWaitMetrics(drinkOrder);
     expect(metrics.totalPatties).toBe(0);
   });
+
+  it('keeps all orders in list and sorts confirmed orders above pending orders for auto-scroll', () => {
+    const sorted = KdsService.sortOrdersForAutoScroll(sampleOrders);
+
+    // Todos os 4 pedidos permanecem na lista (nunca somem)
+    expect(sorted).toHaveLength(4);
+
+    // Confirmados/entregues (ord-4: 30min ago delivered, ord-3: 20min ago ready) ficam no topo para rolar para cima
+    expect(sorted[0].id).toBe('ord-4');
+    expect(sorted[1].id).toBe('ord-3');
+
+    // Pendentes (ord-1: 15min ago queued, ord-2: 8min ago preparing) vêm logo abaixo em ordem FIFO
+    expect(sorted[2].id).toBe('ord-1');
+    expect(sorted[3].id).toBe('ord-2');
+  });
+
+  it('auto-scrolls to first pending order when enough orders exist, or stays at 0 when not enough orders to scroll', () => {
+    const sorted = KdsService.sortOrdersForAutoScroll(sampleOrders);
+    const cardPositions: Record<string, number> = {
+      'ord-4': 0,
+      'ord-3': 180,
+      'ord-1': 360, // Primeiro pendente
+      'ord-2': 540,
+    };
+
+    // Caso 1: Poucos pedidos / conteúdo menor que a altura da tela (não há o que rolar)
+    const offsetNoScroll = KdsService.calculateAutoScrollOffset(sorted, cardPositions, 400, 600);
+    expect(offsetNoScroll).toBe(0);
+
+    // Caso 2: Há pedidos suficientes na tela (ex: contentHeight = 1100, viewportHeight = 500 -> maxScroll = 600)
+    // Rola exatamente para y = 360 (ord-1), escondendo ord-4 e ord-3 que já foram entregues
+    const offsetWithScroll = KdsService.calculateAutoScrollOffset(sorted, cardPositions, 1100, 500);
+    expect(offsetWithScroll).toBe(360);
+
+    // Caso 3: Limita ao maxScrollY para não gerar espaço vazio se faltar altura abaixo
+    const offsetClamped = KdsService.calculateAutoScrollOffset(sorted, cardPositions, 720, 500);
+    // maxScrollY = 720 - 500 = 220 (menor que 360)
+    expect(offsetClamped).toBe(220);
+  });
 });

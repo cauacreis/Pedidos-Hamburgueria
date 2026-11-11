@@ -112,4 +112,69 @@ export class KdsService {
       return orderTimeMs >= cutoffTimeMs;
     });
   }
+
+  /**
+   * Verifica se o pedido já foi confirmado/entregue pelo balcão
+   */
+  static isOrderConfirmed(order: Order): boolean {
+    return order.status === 'ready' || order.status === 'delivered';
+  }
+
+  /**
+   * Ordena os pedidos para a rolagem automática da Cozinha (KDS):
+   * - Pedidos já confirmados/entregues ('ready' e 'delivered') ficam no topo (grupo 1),
+   *   em ordem cronológica (#01, #02...) para rolarem para cima quando houver espaço.
+   * - Pedidos pendentes de preparo ('queued' e 'preparing') vêm logo abaixo (grupo 2),
+   *   em ordem cronológica FIFO para que o próximo da fila fique no topo visível.
+   */
+  static sortOrdersForAutoScroll(orders: Order[]): Order[] {
+    return [...orders].sort((a, b) => {
+      const groupA = this.isOrderConfirmed(a) ? 1 : 2;
+      const groupB = this.isOrderConfirmed(b) ? 1 : 2;
+
+      if (groupA !== groupB) {
+        return groupA - groupB;
+      }
+
+      const timeA = new Date(a.created_at).getTime();
+      const timeB = new Date(b.created_at).getTime();
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+
+      return a.daily_number - b.daily_number;
+    });
+  }
+
+  /**
+   * Calcula a posição Y ideal de rolagem automática na tela da Cozinha:
+   * - Se não houver pedidos suficientes para encher a tela (contentHeight <= viewportHeight),
+   *   retorna 0 (não rola, os pedidos confirmados aparecem apenas marcados como entregues).
+   * - Se houver pedidos suficientes para rolar, rola até o primeiro pedido pendente
+   *   (limitado a maxScrollY para não criar espaço em branco no fim da lista).
+   */
+  static calculateAutoScrollOffset(
+    sortedOrders: Order[],
+    cardPositions: Record<string, number>,
+    contentHeight: number,
+    viewportHeight: number
+  ): number {
+    const maxScrollY = Math.max(0, contentHeight - viewportHeight);
+    if (maxScrollY <= 0) {
+      return 0;
+    }
+
+    const firstPending = sortedOrders.find((o) => !this.isOrderConfirmed(o));
+    if (!firstPending) {
+      // Todos os pedidos foram entregues: rola até o final disponível da lista
+      return maxScrollY;
+    }
+
+    const targetY = cardPositions[firstPending.id];
+    if (typeof targetY !== 'number' || isNaN(targetY)) {
+      return 0;
+    }
+
+    return Math.min(Math.max(0, targetY), maxScrollY);
+  }
 }

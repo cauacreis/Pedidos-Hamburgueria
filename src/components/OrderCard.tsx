@@ -21,16 +21,17 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   onDeleteOrder,
 }) => {
   const waitMetrics = KdsService.calculateWaitMetrics(order);
+  const isCompleted = order.status === 'ready' || order.status === 'delivered';
 
   const getUrgencyBorderColor = () => {
-    if (order.status === 'ready') return THEME.colors.success;
+    if (isCompleted) return THEME.colors.success;
     if (waitMetrics.urgency === 'urgent') return THEME.colors.danger;
     if (waitMetrics.urgency === 'warning') return THEME.colors.warning;
     return THEME.colors.surfaceBorder;
   };
 
   const getUrgencyBadgeStyle = () => {
-    if (order.status === 'ready') {
+    if (isCompleted) {
       return {
         backgroundColor: THEME.colors.successLight,
         color: THEME.colors.success,
@@ -61,7 +62,13 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   const badgeStyle = getUrgencyBadgeStyle();
 
   return (
-    <View style={[styles.card, { borderColor: getUrgencyBorderColor() }]}>
+    <View
+      style={[
+        styles.card,
+        { borderColor: getUrgencyBorderColor() },
+        mode === 'kds' && isCompleted && styles.cardCompletedKds,
+      ]}
+    >
       {/* Header do Card: Senha, Cliente e Timer */}
       <View style={styles.header}>
         <View style={styles.numberContainer}>
@@ -89,13 +96,17 @@ export const OrderCard: React.FC<OrderCardProps> = ({
             },
           ]}
         >
-          {order.status === 'ready' ? (
+          {isCompleted ? (
             <CheckCircle2 size={13} color={badgeStyle.color} style={styles.timerIcon} />
           ) : (
             <Clock size={13} color={badgeStyle.color} style={styles.timerIcon} />
           )}
           <Text style={[styles.timerText, { color: badgeStyle.color }]}>
-            {order.status === 'ready' ? 'Pronto' : `${waitMetrics.minutesElapsed} min`}
+            {isCompleted
+              ? mode === 'kds' || order.status === 'delivered'
+                ? 'Entregue'
+                : 'Pronto'
+              : `${waitMetrics.minutesElapsed} min`}
           </Text>
         </View>
       </View>
@@ -132,10 +143,10 @@ export const OrderCard: React.FC<OrderCardProps> = ({
       <View style={styles.footer}>
         {mode === 'kds' && (
           <View style={styles.kdsCardFooter}>
-            {order.status === 'ready' ? (
+            {isCompleted ? (
               <View style={styles.kdsReadyBadge}>
                 <CheckCircle2 size={15} color={THEME.colors.success} style={styles.btnIcon} />
-                <Text style={styles.kdsReadyText}>Pronto no Balcão (Aguardando Retirada)</Text>
+                <Text style={styles.kdsReadyText}>Entregue / Confirmado pelo Balcão</Text>
               </View>
             ) : (
               <View style={styles.kdsPrepBadge}>
@@ -246,6 +257,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 3,
+  },
+  cardCompletedKds: {
+    opacity: 0.68,
+    backgroundColor: THEME.colors.background,
   },
   header: {
     flexDirection: 'row',
