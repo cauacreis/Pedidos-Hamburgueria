@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { Flame, CheckCircle2, Clock, Check, Trash2 } from 'lucide-react-native';
 import { THEME } from '../constants/theme';
 import { Order, OrderStatus } from '../types/database';
@@ -195,9 +195,16 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                   <TouchableOpacity
                     style={styles.posDeleteBtn}
                     onPress={() => {
+                      const message = `Deseja remover o pedido #${String(order.daily_number).padStart(2, '0')} (${order.customer_name || 'Balcão'})?`;
+                      if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+                        if (window.confirm(message)) {
+                          onDeleteOrder(order.id);
+                        }
+                        return;
+                      }
                       Alert.alert(
                         'Excluir Pedido da Fila',
-                        `Deseja remover o pedido #${String(order.daily_number).padStart(2, '0')} (${order.customer_name || 'Balcão'})?`,
+                        message,
                         [
                           { text: 'Cancelar', style: 'cancel' },
                           {

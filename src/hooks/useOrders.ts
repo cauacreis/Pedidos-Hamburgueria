@@ -130,8 +130,18 @@ export function useOrders({ role, client, server }: UseOrdersProps) {
       const unsub = client.onMessage((msg: SocketMessage) => {
         if (msg.type === 'INITIAL_SYNC') {
           const syncPayload = (msg as InitialSyncMessage).payload;
-          const filtered = KdsService.filterStaleOrders(syncPayload.orders, staleHours);
-          setOrders(KdsService.sortOrdersForAutoScroll(filtered));
+          const incoming = Array.isArray(syncPayload.orders) ? syncPayload.orders : [];
+          setOrders((prev) => {
+            const mergedMap = new Map<string, Order>();
+            for (const o of prev) {
+              mergedMap.set(o.id, o);
+            }
+            for (const o of incoming) {
+              mergedMap.set(o.id, o);
+            }
+            const filtered = KdsService.filterStaleOrders(Array.from(mergedMap.values()), staleHours);
+            return KdsService.sortOrdersForAutoScroll(filtered);
+          });
         } else if (msg.type === 'NEW_ORDER') {
           const newOrder = (msg as NewOrderMessage).payload;
           setOrders((prev) => {

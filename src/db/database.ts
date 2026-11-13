@@ -270,7 +270,7 @@ export class InMemoryDatabaseDriver implements DatabaseDriver {
       return result as unknown as T[];
     }
 
-    if (trimmed.includes('FROM ORDER_ITEMS WHERE ORDER_ID = ?')) {
+    if (trimmed.includes('FROM ORDER_ITEMS') && trimmed.includes('ORDER_ID = ?')) {
       const orderId = params[0];
       const items = Array.from(this.orderItems.values()).filter((i) => i.order_id === orderId);
       // Join product info

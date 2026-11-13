@@ -108,6 +108,22 @@ export const MenuManagerModal: React.FC<MenuManagerModalProps> = ({
   };
 
   const handleDelete = (product: Product) => {
+    const performDelete = async () => {
+      try {
+        await ProductsRepository.deleteProduct(product.id);
+        onProductsUpdated();
+      } catch {
+        Alert.alert('Erro', 'Não foi possível remover o produto.');
+      }
+    };
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      if (window.confirm(`Deseja realmente remover "${product.name}" do cardápio?`)) {
+        performDelete();
+      }
+      return;
+    }
+
     Alert.alert(
       'Remover Item',
       `Deseja realmente remover "${product.name}" do cardápio?`,
@@ -116,20 +132,29 @@ export const MenuManagerModal: React.FC<MenuManagerModalProps> = ({
         {
           text: 'Remover',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await ProductsRepository.deleteProduct(product.id);
-              onProductsUpdated();
-            } catch {
-              Alert.alert('Erro', 'Não foi possível remover o produto.');
-            }
-          },
+          onPress: performDelete,
         },
       ]
     );
   };
 
   const handleResetDefaults = () => {
+    const performReset = async () => {
+      try {
+        await ProductsRepository.resetToDefault();
+        onProductsUpdated();
+      } catch {
+        Alert.alert('Erro', 'Não foi possível restaurar o cardápio padrão.');
+      }
+    };
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      if (window.confirm('Isso restaurará os 10 itens oficiais da Bodega do Vidigal com os preços originais. Continuar?')) {
+        performReset();
+      }
+      return;
+    }
+
     Alert.alert(
       'Restaurar Cardápio Padrão',
       'Isso restaurará os 10 itens oficiais da Bodega do Vidigal com os preços originais. Continuar?',
@@ -138,14 +163,7 @@ export const MenuManagerModal: React.FC<MenuManagerModalProps> = ({
         {
           text: 'Restaurar',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await ProductsRepository.resetToDefault();
-              onProductsUpdated();
-            } catch {
-              Alert.alert('Erro', 'Não foi possível restaurar o cardápio padrão.');
-            }
-          },
+          onPress: performReset,
         },
       ]
     );

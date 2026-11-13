@@ -89,7 +89,7 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
     }
   };
 
-  if (isDisconnected) {
+  if (isDisconnected && sortedOrders.length === 0) {
     return (
       <View style={styles.disconnectedContainer}>
         <View style={styles.disconnectedBox}>

@@ -70,15 +70,31 @@ wss.on('connection', (ws, req) => {
   ws.on('message', (data) => {
     try {
       const msg = JSON.parse(data.toString());
+
+      if (msg.type === 'PING') {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ id: `pong_${Date.now()}`, timestamp: Date.now(), type: 'PONG' }));
+        }
+        return;
+      }
+
       console.log(`[EVENTO] ${msg.type}`);
 
       if (msg.type === 'NEW_ORDER' && msg.payload) {
-        ordersStore.push(msg.payload);
-      } else if (msg.type === 'UPDATE_ORDER_STATUS' && msg.payload) {
+        const exists = ordersStore.some(o => o.id === msg.payload.id);
+        if (!exists) {
+          ordersStore.push(msg.payload);
+        }
+      } else if ((msg.type === 'UPDATE_ORDER_STATUS' || msg.type === 'ORDER_STATUS_CHANGED') && msg.payload) {
         const orderId = msg.payload.order_id || msg.payload.orderId;
         const target = ordersStore.find(o => o.id === orderId);
         if (target) {
           target.status = msg.payload.status;
+        }
+      } else if (msg.type === 'ORDER_DELETED' && msg.payload) {
+        const ids = msg.payload.order_ids || (msg.payload.order_id ? [msg.payload.order_id] : []);
+        if (ids.length > 0) {
+          ordersStore = ordersStore.filter(o => !ids.includes(o.id));
         }
       }
 

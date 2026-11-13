@@ -144,4 +144,66 @@ describe('Food Truck End-to-End Workflow Integration Test', () => {
     pattyMetrics = KdsService.calculatePattyCounter([readyOrder!]);
     expect(pattyMetrics.totalPendingPatties).toBe(0);
   });
+
+  it('simulates full user flow: 4 orders, grill counting, balcão confirmation, and KDS auto-scroll without hiding delivered orders', async () => {
+    // 1. Balcão cria 4 pedidos em sequência
+    const ord1 = await OrdersRepository.createOrder({
+      customer_name: 'Lucas',
+      items: [
+        { product_id: 'prod-burger-1-carne', quantity: 1, notes: 'Sem picles' },
+        { product_id: 'prod-burger-1-carne', quantity: 1, notes: 'Bem passado' },
+        { product_id: 'prod-combo-batata-bebida', quantity: 1 },
+      ],
+    });
+    const ord2 = await OrdersRepository.createOrder({
+      customer_name: 'Mariana',
+      items: [{ product_id: 'prod-burger-2-carnes', quantity: 1, notes: 'Ponto menos' }],
+    });
+    const ord3 = await OrdersRepository.createOrder({
+      customer_name: 'Pedro',
+      items: [{ product_id: 'prod-burger-2-carnes-bacon', quantity: 2 }],
+    });
+    const ord4 = await OrdersRepository.createOrder({
+      customer_name: 'Ana',
+      items: [{ product_id: 'prod-burger-1-carne-bacon', quantity: 1 }],
+    });
+
+    // 2. Cozinha verifica contador de carnes antes das confirmações
+    let activeKdsOrders = await OrdersRepository.getActiveKitchenOrders(2);
+    expect(activeKdsOrders).toHaveLength(4);
+    // Carnes: ord1(2) + ord2(2) + ord3(4) + ord4(1) = 9 carnes na chapa
+    expect(KdsService.calculatePattyCounter(activeKdsOrders).totalPendingPatties).toBe(9);
+
+    // 3. Balcão confirma pedido #01 como pronto e pedido #02 como entregue
+    await OrdersRepository.updateOrderStatus(ord1.id, 'ready');
+    await OrdersRepository.updateOrderStatus(ord2.id, 'delivered');
+
+    // 4. Cozinha recarrega pedidos: TODOS os 4 pedidos continuam presentes (nunca somem)
+    activeKdsOrders = await OrdersRepository.getActiveKitchenOrders(2);
+    expect(activeKdsOrders).toHaveLength(4);
+
+    // Apenas #03 e #04 contam na chapa agora (4 + 1 = 5 carnes)
+    expect(KdsService.calculatePattyCounter(activeKdsOrders).totalPendingPatties).toBe(5);
+
+    // Ordenação para rolagem automática: confirmados (#01, #02) no topo, pendentes (#03, #04) abaixo
+    const sortedForKds = KdsService.sortOrdersForAutoScroll(activeKdsOrders);
+    expect(sortedForKds[0].id).toBe(ord1.id);
+    expect(sortedForKds[1].id).toBe(ord2.id);
+    expect(sortedForKds[2].id).toBe(ord3.id);
+    expect(sortedForKds[3].id).toBe(ord4.id);
+
+    // Simula posições dos cards e verifica rolagem automática:
+    const cardPositions: Record<string, number> = {
+      [ord1.id]: 0,
+      [ord2.id]: 220,
+      [ord3.id]: 440, // Primeiro pendente
+      [ord4.id]: 680,
+    };
+
+    // Com altura suficiente na lista (1200px em tela de 600px), rola exatamente até #03 (440px)
+    expect(KdsService.calculateAutoScrollOffset(sortedForKds, cardPositions, 1200, 600)).toBe(440);
+
+    // Sem pedidos suficientes para rolar (500px em tela de 600px), fica em 0 (mostra apenas marcado como entregue)
+    expect(KdsService.calculateAutoScrollOffset(sortedForKds, cardPositions, 500, 600)).toBe(0);
+  });
 });

@@ -67,6 +67,10 @@ export class KdsWebSocketClient {
         await this.connect(savedHost);
         return true;
       }
+      if (typeof window !== 'undefined' && window.location && window.location.host) {
+        await this.connect(window.location.host);
+        return true;
+      }
     } catch {
       // Ignora erro
     }
