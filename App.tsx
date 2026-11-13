@@ -119,12 +119,21 @@ export default function App() {
           onClose={() => setConnectModalVisible(false)}
           localIp={connection.localIp}
           connectedClientsCount={connection.connectedClientsCount}
+          connectedHost={connection.connectedHost}
+          onConnectHost={(host) => {
+            connection.connectToHost(host);
+          }}
+          onSwitchToScanner={() => {
+            setConnectModalVisible(false);
+            setScannerModalVisible(true);
+          }}
         />
 
         {/* Modal do Scanner da Cozinha (Câmera + Fallback de IP) */}
         <ScannerModal
           visible={scannerModalVisible}
           onClose={() => setScannerModalVisible(false)}
+          localIp={connection.localIp}
           onScanned={(payload) => {
             connection.connectToHost(payload);
           }}

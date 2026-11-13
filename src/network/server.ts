@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   SocketMessage,
   NewOrderMessage,
@@ -6,11 +7,13 @@ import {
   InitialSyncMessage,
   UpdateOrderStatusMessage,
   OrderDeletedMessage,
+  ClientCountMessage,
 } from '../types/events';
 import { Order, OrderStatus } from '../types/database';
 import { OrdersRepository } from '../db/ordersRepository';
 import { ServerStatus } from './types';
 import { APP_CONFIG } from '../constants/config';
+import { NetworkDiscovery } from './discovery';
 
 type ServerMessageHandler = (message: SocketMessage) => void;
 type ClientCountHandler = (count: number) => void;
@@ -22,12 +25,19 @@ export class PosWebSocketServer {
   private clients: Set<any> = new Set();
   private status: ServerStatus = 'idle';
   private port: number;
+  private hubHost: string | null = null;
+  private hubPort: number = APP_CONFIG.WEBSOCKET.DEFAULT_PORT;
+  private hubReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private hubReconnectAttempts = 0;
+  private hubClientsCount = 0;
+  private intentionalHubDisconnect = false;
 
   private messageHandlers: Set<ServerMessageHandler> = new Set();
   private clientCountHandlers: Set<ClientCountHandler> = new Set();
 
   private constructor(port: number = APP_CONFIG.WEBSOCKET.DEFAULT_PORT) {
     this.port = port;
+    this.hubPort = port;
   }
 
   public static getInstance(port: number = APP_CONFIG.WEBSOCKET.DEFAULT_PORT): PosWebSocketServer {
@@ -41,12 +51,16 @@ export class PosWebSocketServer {
     return this.status;
   }
 
+  public getHubHost(): string | null {
+    return this.hubHost;
+  }
+
   public getConnectedClientsCount(): number {
-    return this.clients.size;
+    return Math.max(this.clients.size, this.hubClientsCount);
   }
 
   /**
-   * Inicia o servidor WebSocket local na porta configurada
+   * Inicia o servidor WebSocket local na porta configurada ou conecta ao Hub local (Web/Expo Go)
    */
   public async start(): Promise<boolean> {
     if (this.status === 'running') {
@@ -54,36 +68,19 @@ export class PosWebSocketServer {
     }
 
     this.status = 'starting';
+    this.intentionalHubDisconnect = false;
 
     // No navegador Web, conecta como cliente do hub WebSocket local
-    if (Platform.OS === 'web' || typeof window !== 'undefined') {
-      try {
-        const host =
-          typeof window !== 'undefined' && window.location && window.location.host
-            ? window.location.host
-            : `localhost:${this.port}`;
-        const ws = new WebSocket(`ws://${host}`);
-        this.webSocketClient = ws;
-
-        ws.onopen = () => {
-          this.status = 'running';
-          this.notifyClientCount();
-        };
-
-        ws.onmessage = (event) => {
-          this.handleClientMessage(ws, event.data);
-        };
-
-        ws.onclose = () => {
-          this.webSocketClient = null;
-        };
-
-        this.status = 'running';
-        return true;
-      } catch (err) {
-        this.status = 'running';
-        return true;
-      }
+    if (Platform.OS === 'web') {
+      const locationHost =
+        typeof window !== 'undefined' && window.location && window.location.host
+          ? window.location.host
+          : `localhost:${this.port}`;
+      const [parsedHost, parsedPort] = locationHost.split(':');
+      const targetPort = parsedPort ? Number(parsedPort) || this.port : this.port;
+      await this.connectToHub(parsedHost || 'localhost', targetPort, false);
+      this.status = 'running';
+      return true;
     }
 
     try {
@@ -145,19 +142,174 @@ export class PosWebSocketServer {
         return true;
       }
     } catch (err) {
-      // Fallback para ambiente móvel puro onde servidor em background usa barramento local
-      this.status = 'running';
-      return true;
+      // Fallback para ambiente móvel puro onde servidor em background usa Hub ou barramento local
     }
+
+    // Mobile / Expo Go (sem suporte a servidor TCP nativo): conecta ao Hub na rede local/Hotspot
+    try {
+      const savedHost = await AsyncStorage.getItem(APP_CONFIG.STORAGE_KEYS.LAST_SERVER_IP);
+      const targetHost = savedHost && savedHost.trim().length > 0 ? savedHost.trim() : '192.168.43.1';
+      await this.connectToHub(targetHost, this.port, false);
+    } catch {}
 
     this.status = 'running';
     return true;
   }
 
   /**
+   * Conecta o Caixa (iPhone no Expo Go ou Web) a um Hub WebSocket local na rede/Hotspot
+   */
+  public async connectToHub(
+    hostOrPayload: string,
+    port: number = this.port,
+    persist: boolean = true
+  ): Promise<boolean> {
+    const parsedPairing = NetworkDiscovery.parsePairingPayload(hostOrPayload);
+    let cleanHost = parsedPairing ? parsedPairing.host : hostOrPayload.trim();
+    let targetPort = parsedPairing ? parsedPairing.port : port;
+
+    cleanHost = cleanHost.replace(/^wss?:\/\//i, '').replace(/\/.*$/, '');
+    if (cleanHost.includes(':')) {
+      const [h, p] = cleanHost.split(':');
+      cleanHost = h;
+      const numericPort = Number(p);
+      if (!Number.isNaN(numericPort) && numericPort > 0) {
+        targetPort = numericPort;
+      }
+    }
+
+    if (!cleanHost) {
+      return false;
+    }
+
+    if (this.hubReconnectTimer) {
+      clearTimeout(this.hubReconnectTimer);
+      this.hubReconnectTimer = null;
+    }
+
+    if (this.webSocketClient) {
+      this.intentionalHubDisconnect = true;
+      try {
+        this.webSocketClient.onclose = null;
+        this.webSocketClient.close();
+      } catch {}
+      this.webSocketClient = null;
+    }
+
+    this.intentionalHubDisconnect = false;
+    this.hubHost = cleanHost;
+    this.hubPort = targetPort;
+
+    if (persist) {
+      try {
+        await AsyncStorage.setItem(APP_CONFIG.STORAGE_KEYS.LAST_SERVER_IP, cleanHost);
+      } catch {}
+    }
+
+    if (typeof WebSocket === 'undefined') {
+      this.status = 'running';
+      return false;
+    }
+
+    try {
+      const ws = new WebSocket(`ws://${cleanHost}:${targetPort}`);
+      this.webSocketClient = ws;
+
+      ws.onopen = async () => {
+        if (this.webSocketClient !== ws) return;
+        this.hubReconnectAttempts = 0;
+        this.status = 'running';
+
+        try {
+          const activeOrders = await OrdersRepository.getActiveKitchenOrders();
+          if (activeOrders.length > 0 && ws.readyState === 1) {
+            const initSyncMsg: InitialSyncMessage = {
+              id: `sync_${Date.now()}`,
+              timestamp: Date.now(),
+              type: 'INITIAL_SYNC',
+              payload: {
+                orders: activeOrders,
+                serverTime: Date.now(),
+              },
+            };
+            ws.send(JSON.stringify(initSyncMsg));
+          }
+        } catch {}
+
+        this.notifyClientCount();
+      };
+
+      ws.onmessage = (event: any) => {
+        this.handleClientMessage(ws, event.data);
+      };
+
+      ws.onerror = () => {};
+
+      ws.onclose = () => {
+        if (this.webSocketClient === ws) {
+          this.webSocketClient = null;
+          this.hubClientsCount = 0;
+          this.notifyClientCount();
+          if (!this.intentionalHubDisconnect && this.status !== 'stopped') {
+            this.scheduleHubReconnect();
+          }
+        }
+      };
+
+      this.status = 'running';
+      return true;
+    } catch {
+      this.scheduleHubReconnect();
+      return false;
+    }
+  }
+
+  /**
+   * Força reconexão imediata ao Hub ao voltar do background no iPhone
+   */
+  public reconnectNow(): void {
+    if (this.server) return;
+    if (this.webSocketClient && this.webSocketClient.readyState === 1) return;
+    if (this.hubHost && !this.intentionalHubDisconnect && this.status !== 'stopped') {
+      this.hubReconnectAttempts = 0;
+      void this.connectToHub(this.hubHost, this.hubPort, false);
+    }
+  }
+
+  private scheduleHubReconnect(): void {
+    if (
+      this.hubReconnectTimer ||
+      !this.hubHost ||
+      this.intentionalHubDisconnect ||
+      this.status === 'stopped'
+    ) {
+      return;
+    }
+
+    const delay = Math.min(
+      APP_CONFIG.WEBSOCKET.INITIAL_RECONNECT_DELAY_MS *
+        Math.pow(APP_CONFIG.WEBSOCKET.RECONNECT_BACKOFF_FACTOR, this.hubReconnectAttempts),
+      APP_CONFIG.WEBSOCKET.MAX_RECONNECT_DELAY_MS
+    );
+    this.hubReconnectAttempts += 1;
+
+    this.hubReconnectTimer = setTimeout(() => {
+      this.hubReconnectTimer = null;
+      if (this.hubHost && !this.intentionalHubDisconnect && this.status !== 'stopped') {
+        void this.connectToHub(this.hubHost, this.hubPort, false);
+      }
+    }, delay);
+  }
+
+  /**
    * Encerra o servidor e desconecta clientes
    */
   public stop(): void {
+    this.intentionalHubDisconnect = true;
+    if (this.hubReconnectTimer) {
+      clearTimeout(this.hubReconnectTimer);
+      this.hubReconnectTimer = null;
+    }
     if (this.server) {
       try {
         this.server.close();
@@ -166,10 +318,12 @@ export class PosWebSocketServer {
     }
     if (this.webSocketClient) {
       try {
+        this.webSocketClient.onclose = null;
         this.webSocketClient.close();
       } catch {}
       this.webSocketClient = null;
     }
+    this.hubClientsCount = 0;
     this.clients.clear();
     this.status = 'stopped';
     this.notifyClientCount();
@@ -256,7 +410,7 @@ export class PosWebSocketServer {
 
   public onClientCountChange(handler: ClientCountHandler): () => void {
     this.clientCountHandlers.add(handler);
-    handler(this.clients.size);
+    handler(this.getConnectedClientsCount());
     return () => this.clientCountHandlers.delete(handler);
   }
 
@@ -266,6 +420,12 @@ export class PosWebSocketServer {
 
       if (parsed.type === 'PING') {
         sender.send(JSON.stringify({ id: `pong_${Date.now()}`, timestamp: Date.now(), type: 'PONG' }));
+        return;
+      }
+
+      if (parsed.type === 'CLIENT_COUNT') {
+        this.hubClientsCount = (parsed as ClientCountMessage).payload?.count ?? 0;
+        this.notifyClientCount();
         return;
       }
 
@@ -289,7 +449,7 @@ export class PosWebSocketServer {
   }
 
   private notifyClientCount(): void {
-    const count = this.clients.size;
+    const count = this.getConnectedClientsCount();
     for (const handler of this.clientCountHandlers) {
       try {
         handler(count);

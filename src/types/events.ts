@@ -10,7 +10,8 @@ export type WebSocketMessageType =
   | 'ORDER_DELETED'         // Pedido expirado ou excluído da fila
   | 'PING'                  // Heartbeat
   | 'PONG'                  // Resposta do Heartbeat
-  | 'ACK';                  // Confirmação de recebimento
+  | 'ACK'                   // Confirmação de recebimento
+  | 'CLIENT_COUNT';         // Quantidade de dispositivos conectados no Hub
 
 export interface BaseSocketMessage {
   id: string;
@@ -79,6 +80,13 @@ export interface AckMessage extends BaseSocketMessage {
   success: boolean;
 }
 
+export interface ClientCountMessage extends BaseSocketMessage {
+  type: 'CLIENT_COUNT';
+  payload: {
+    count: number;
+  };
+}
+
 export type SocketMessage =
   | InitialSyncMessage
   | NewOrderMessage
@@ -88,7 +96,8 @@ export type SocketMessage =
   | OrderDeletedMessage
   | PingMessage
   | PongMessage
-  | AckMessage;
+  | AckMessage
+  | ClientCountMessage;
 
 export interface KdsPairingPayload {
   host: string;

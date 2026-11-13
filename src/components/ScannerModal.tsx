@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { THEME } from '../constants/theme';
+import { APP_CONFIG } from '../constants/config';
 import { NetworkDiscovery } from '../network/discovery';
 
 interface ScannerModalProps {
   visible: boolean;
   onClose: () => void;
   onScanned: (payload: string) => void;
+  localIp?: string;
 }
 
-export const ScannerModal: React.FC<ScannerModalProps> = ({ visible, onClose, onScanned }) => {
+export const ScannerModal: React.FC<ScannerModalProps> = ({ visible, onClose, onScanned, localIp }) => {
   const [permission, requestPermission] = useCameraPermissions();
   const [manualIp, setManualIp] = useState('');
   const [scanned, setScanned] = useState(false);
@@ -83,7 +85,12 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ visible, onClose, on
 
           {/* Fallback de IP Manual */}
           <View style={styles.manualSection}>
-            <Text style={styles.manualLabel}>Ou digite o IP do Caixa manualmente:</Text>
+            {localIp ? (
+              <Text style={styles.localIpHint}>
+                IP deste aparelho: {localIp}:{APP_CONFIG.WEBSOCKET.DEFAULT_PORT}
+              </Text>
+            ) : null}
+            <Text style={styles.manualLabel}>Ou digite o IP do Caixa / Hub manualmente:</Text>
             <View style={styles.inputRow}>
               <TextInput
                 style={styles.input}
@@ -102,6 +109,16 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ visible, onClose, on
                 <Text style={styles.connectBtnText}>Conectar</Text>
               </TouchableOpacity>
             </View>
+            <TouchableOpacity
+              style={styles.localhostBtn}
+              onPress={() => {
+                onScanned('127.0.0.1');
+                onClose();
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.localhostBtnText}>Conectar neste Aparelho (127.0.0.1)</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -210,5 +227,25 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 13,
+  },
+  localIpHint: {
+    fontSize: 12,
+    color: THEME.colors.textSecondary,
+    marginBottom: 6,
+    fontWeight: '700',
+  },
+  localhostBtn: {
+    marginTop: 10,
+    backgroundColor: THEME.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorder,
+    borderRadius: THEME.borderRadius.md,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  localhostBtnText: {
+    color: THEME.colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 12,
   },
 });

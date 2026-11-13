@@ -36,6 +36,7 @@ export function useConnection(role: 'pos' | 'kds' | 'dashboard') {
 
       srv.start().then(() => {
         setServerStatus(srv.getStatus());
+        setConnectedHost(srv.getHubHost());
       });
 
       const unsubCount = srv.onClientCountChange((count) => {
@@ -86,8 +87,10 @@ export function useConnection(role: 'pos' | 'kds' | 'dashboard') {
             setLocalIp(ip);
           });
           if (serverRef.current) {
+            serverRef.current.reconnectNow();
             setServerStatus(serverRef.current.getStatus());
             setConnectedClientsCount(serverRef.current.getConnectedClientsCount());
+            setConnectedHost(serverRef.current.getHubHost());
           }
         }
       }
@@ -103,10 +106,14 @@ export function useConnection(role: 'pos' | 'kds' | 'dashboard') {
     const host = parsed ? parsed.host : hostOrPayload.trim();
     const port = parsed ? parsed.port : APP_CONFIG.WEBSOCKET.DEFAULT_PORT;
 
-    if (clientRef.current) {
+    if (role === 'kds' && clientRef.current) {
       await clientRef.current.connect(host, port);
+    } else if (serverRef.current) {
+      await serverRef.current.connectToHub(host, port);
+      setConnectedHost(serverRef.current.getHubHost());
+      setServerStatus(serverRef.current.getStatus());
     }
-  }, []);
+  }, [role]);
 
   const disconnectClient = useCallback(() => {
     if (clientRef.current) {
