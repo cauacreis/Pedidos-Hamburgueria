@@ -30,13 +30,7 @@
         "ACCESS_NETWORK_STATE",
         "ACCESS_WIFI_STATE",
         "WAKE_LOCK",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "CAMERA",
-        "ACCESS_NETWORK_STATE",
-        "ACCESS_WIFI_STATE",
-        "WAKE_LOCK",
-        "android.permission.CAMERA",
+        "INTERNET",
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -49,7 +43,8 @@
       ],
       "expo-sqlite",
       "expo-asset",
-      "expo-updates"
+      "expo-updates",
+      "./plugins/withCleartextTraffic"
     ],
     "updates": {
       "enabled": true,

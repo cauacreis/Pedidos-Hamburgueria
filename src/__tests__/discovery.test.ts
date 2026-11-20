@@ -58,4 +58,27 @@ describe('NetworkDiscovery - QR Code Pairing & Protocol Serialization', () => {
     expect(wsNoPort?.host).toBe('192.168.43.1');
     expect(wsNoPort?.port).toBe(8080);
   });
+
+  it('builds prioritized Hotspot / LAN candidate Hub IPs from current subnet and saved IP', () => {
+    const candidates = NetworkDiscovery.getCandidateHubIps('192.168.187.50', '192.168.187.120');
+    expect(candidates[0]).toBe('192.168.187.50');
+    expect(candidates[1]).toBe('192.168.187.1');
+    expect(candidates).toContain('192.168.43.1');
+    expect(candidates).toContain('192.168.137.1');
+    expect(candidates).toContain('172.20.10.1');
+
+    // Quando dispositivo está em sub-rede diferente do IP salvo, prioriza gateway atual (.1)
+    const diffSubnet = NetworkDiscovery.getCandidateHubIps('192.168.1.99', '192.168.200.45');
+    expect(diffSubnet[0]).toBe('192.168.200.1');
+    expect(diffSubnet[diffSubnet.length - 1]).toBe('192.168.1.99');
+  });
+
+  it('skips device IP itself if it matches gateway .1 and handles null/0.0.0.0 cleanly', () => {
+    const selfGateway = NetworkDiscovery.getCandidateHubIps(null, '192.168.43.1');
+    expect(selfGateway).not.toContain('192.168.43.1');
+    expect(selfGateway).toEqual(['192.168.137.1', '172.20.10.1']);
+
+    const emptyInputs = NetworkDiscovery.getCandidateHubIps(null, '0.0.0.0');
+    expect(emptyInputs).toEqual(['192.168.43.1', '192.168.137.1', '172.20.10.1']);
+  });
 });

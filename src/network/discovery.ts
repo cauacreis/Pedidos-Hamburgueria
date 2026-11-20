@@ -1,5 +1,6 @@
 import { KdsPairingPayload } from '../types/events';
 import { APP_CONFIG } from '../constants/config';
+import { LocalHub } from './localHub';
 
 export class NetworkDiscovery {
   /**
@@ -95,9 +96,82 @@ export class NetworkDiscovery {
   }
 
   /**
-   * Obtém o IP local da interface Wi-Fi / Hotspot usando expo-network
+   * Extrai lista priorizada de possíveis IPs do Hub local / Roteador (Hotspot)
+   * sem depender de internet externa.
+   */
+  static getCandidateHubIps(savedIp: string | null, deviceIp: string | null): string[] {
+    const normalizeHost = (value: string | null): string | null => {
+      if (!value || typeof value !== 'string') return null;
+      const cleaned = value
+        .replace(/^(ws|wss|http|https):\/\//i, '')
+        .replace(/\/.*$/, '')
+        .split(':')[0]
+        .trim();
+      return cleaned.length > 0 ? cleaned : null;
+    };
+
+    const getPrivateSubnetPrefix = (ip: string | null): string | null => {
+      if (!ip) return null;
+      const parts = ip.split('.').map(Number);
+      if (parts.length !== 4 || parts.some((n) => Number.isNaN(n) || n < 0 || n > 255)) {
+        return null;
+      }
+      if (ip === '127.0.0.1' || ip === '0.0.0.0') return null;
+      const isPrivate =
+        (parts[0] === 192 && parts[1] === 168) ||
+        parts[0] === 10 ||
+        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31);
+      if (!isPrivate) return null;
+      return `${parts[0]}.${parts[1]}.${parts[2]}`;
+    };
+
+    const cleanSaved = normalizeHost(savedIp);
+    const cleanDevice = normalizeHost(deviceIp);
+    const subnetPrefix = getPrivateSubnetPrefix(cleanDevice);
+
+    const candidates: string[] = [];
+    const addCandidate = (ip: string | null) => {
+      if (!ip) return;
+      if (cleanDevice && ip === cleanDevice) return;
+      if (!candidates.includes(ip)) {
+        candidates.push(ip);
+      }
+    };
+
+    // 1. Último IP salvo se pertencer à mesma sub-rede /24 atual
+    if (cleanSaved && subnetPrefix && cleanSaved.startsWith(`${subnetPrefix}.`)) {
+      addCandidate(cleanSaved);
+    }
+
+    // 2. Gateway padrão da sub-rede atual (.1)
+    if (subnetPrefix) {
+      addCandidate(`${subnetPrefix}.1`);
+    }
+
+    // 3. Gateways comuns de Hotspot Android e iPhone
+    addCandidate('192.168.43.1');
+    addCandidate('192.168.137.1');
+    addCandidate('172.20.10.1');
+
+    // 4. Último IP salvo de outra sub-rede como fallback final
+    if (cleanSaved) {
+      addCandidate(cleanSaved);
+    }
+
+    return candidates;
+  }
+
+  /**
+   * Obtém o IP local da interface Hotspot / Wi-Fi priorizando o detector nativo Android
    */
   static async getLocalIpAddress(): Promise<string> {
+    if (LocalHub.isAvailable()) {
+      const hotspotIp = LocalHub.getPrimaryHotspotIp();
+      if (hotspotIp && hotspotIp !== '0.0.0.0' && hotspotIp !== '127.0.0.1') {
+        return hotspotIp;
+      }
+    }
+
     try {
       const Network = require('expo-network');
       if (Network && typeof Network.getIpAddressAsync === 'function') {

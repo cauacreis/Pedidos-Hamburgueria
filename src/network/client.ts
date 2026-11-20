@@ -6,11 +6,13 @@ import { NetworkDiscovery } from './discovery';
 
 type MessageHandler = (message: SocketMessage) => void;
 type StatusHandler = (status: ConnectionStatus) => void;
+type PeerCountHandler = (count: number) => void;
 
 export class KdsWebSocketClient {
   private ws: WebSocket | null = null;
   private currentUrl: string | null = null;
   private status: ConnectionStatus = 'disconnected';
+  private peerCount = 0;
   private reconnectTimeoutId: any = null;
   private heartbeatIntervalId: any = null;
   private reconnectAttempts = 0;
@@ -18,6 +20,7 @@ export class KdsWebSocketClient {
 
   private messageHandlers: Set<MessageHandler> = new Set();
   private statusHandlers: Set<StatusHandler> = new Set();
+  private peerCountHandlers: Set<PeerCountHandler> = new Set();
 
   private options: Required<WebSocketClientOptions>;
 
@@ -33,6 +36,10 @@ export class KdsWebSocketClient {
 
   public getStatus(): ConnectionStatus {
     return this.status;
+  }
+
+  public getPeerCount(): number {
+    return this.peerCount;
   }
 
   public getUrl(): string | null {
@@ -102,6 +109,7 @@ export class KdsWebSocketClient {
       this.ws = null;
     }
     this.setStatus('disconnected');
+    this.setPeerCount(0);
     this.reconnectAttempts = 0;
   }
 
@@ -149,6 +157,12 @@ export class KdsWebSocketClient {
     return () => this.statusHandlers.delete(handler);
   }
 
+  public onPeerCountChange(handler: PeerCountHandler): () => void {
+    this.peerCountHandlers.add(handler);
+    handler(this.peerCount);
+    return () => this.peerCountHandlers.delete(handler);
+  }
+
   // --- Lógica Interna de Conexão e Auto-Reconnect ---
 
   private initiateSocket(url: string): void {
@@ -187,6 +201,7 @@ export class KdsWebSocketClient {
         if (this.ws !== socket) return;
         this.ws = null;
         this.clearTimers();
+        this.setPeerCount(0);
 
         if (!this.isExplicitlyClosed) {
           this.scheduleReconnect();
@@ -210,6 +225,13 @@ export class KdsWebSocketClient {
             timestamp: Date.now(),
             type: 'PONG',
           });
+          return;
+        }
+
+        // Atualizar quantidade de outros dispositivos conectados no Hub
+        if (parsed.type === 'CLIENT_COUNT') {
+          const count = typeof (parsed as any).payload?.count === 'number' ? (parsed as any).payload.count : 0;
+          this.setPeerCount(count);
           return;
         }
 
@@ -277,6 +299,16 @@ export class KdsWebSocketClient {
     for (const handler of this.statusHandlers) {
       try {
         handler(newStatus);
+      } catch {}
+    }
+  }
+
+  private setPeerCount(count: number): void {
+    if (this.peerCount === count) return;
+    this.peerCount = count;
+    for (const handler of this.peerCountHandlers) {
+      try {
+        handler(count);
       } catch {}
     }
   }

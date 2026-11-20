@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, LayoutChangeEvent } from 'react-native';
-import { QrCode, ChefHat, Sparkles, Flame, CheckCircle2 } from 'lucide-react-native';
+import { QrCode, ChefHat, Sparkles, Flame, CheckCircle2, RefreshCw } from 'lucide-react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { THEME } from '../constants/theme';
+import { APP_CONFIG } from '../constants/config';
 import { Order, OrderStatus } from '../types/database';
 import { ConnectionStatus } from '../network/types';
+import { NetworkDiscovery } from '../network/discovery';
 import { PattyCounter } from '../components/PattyCounter';
 import { OrderCard } from '../components/OrderCard';
 import { usePattyCount } from '../hooks/usePattyCount';
@@ -14,6 +17,11 @@ interface KdsScreenProps {
   connectionStatus: ConnectionStatus;
   onUpdateStatus: (orderId: string, status: OrderStatus) => void;
   onOpenScanner: () => void;
+  isNativeHubRunning?: boolean;
+  connectedClientsCount?: number;
+  localIp?: string;
+  connectedHost?: string | null;
+  onRefreshIp?: () => void;
 }
 
 export const KdsScreen: React.FC<KdsScreenProps> = ({
@@ -21,6 +29,11 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
   connectionStatus,
   onUpdateStatus,
   onOpenScanner,
+  isNativeHubRunning = false,
+  connectedClientsCount = 0,
+  localIp = '192.168.43.1',
+  connectedHost = null,
+  onRefreshIp,
 }) => {
   const pattySummary = usePattyCount(orders);
   const isDisconnected = connectionStatus === 'disconnected';
@@ -88,6 +101,57 @@ export const KdsScreen: React.FC<KdsScreenProps> = ({
       setLayoutVersion((v) => v + 1);
     }
   };
+
+  const showingSelfHubWaitingQr =
+    isNativeHubRunning &&
+    connectedClientsCount === 0 &&
+    sortedOrders.length === 0 &&
+    (!connectedHost || connectedHost.includes('127.0.0.1'));
+
+  if (showingSelfHubWaitingQr) {
+    const qrPayload = NetworkDiscovery.generatePairingPayload(
+      localIp,
+      APP_CONFIG.WEBSOCKET.DEFAULT_PORT
+    );
+    return (
+      <View style={styles.disconnectedContainer}>
+        <View style={styles.disconnectedBox}>
+          <Text style={styles.disconnectedTitle}>Cozinha Pronta</Text>
+          <Text style={styles.hubSubtitle}>
+            Ligue o roteador do celular e conecte o iPhone do Caixa nessa rede. Se não conectar sozinho, aponte a câmera do Caixa para o código abaixo:
+          </Text>
+
+          <View style={styles.hubQrBox}>
+            <QRCode
+              value={qrPayload}
+              size={180}
+              color={THEME.colors.background}
+              backgroundColor="#FFFFFF"
+              logo={require('../../assets/logo_icon.png')}
+              logoSize={40}
+              logoBackgroundColor="#FFFFFF"
+              logoMargin={2}
+              logoBorderRadius={20}
+            />
+          </View>
+
+          <View style={styles.hubIpBadge}>
+            <Text style={styles.hubIpLabel}>Endereço desta tela:</Text>
+            <Text style={styles.hubIpValue}>
+              {localIp}:{APP_CONFIG.WEBSOCKET.DEFAULT_PORT}
+            </Text>
+          </View>
+
+          {onRefreshIp && (
+            <TouchableOpacity style={styles.refreshIpBtn} onPress={onRefreshIp} activeOpacity={0.85}>
+              <RefreshCw size={15} color={THEME.colors.textPrimary} style={styles.scanBtnIcon} />
+              <Text style={styles.refreshIpText}>Atualizar endereço</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
 
   if (isDisconnected && sortedOrders.length === 0) {
     return (
@@ -272,6 +336,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+  },
+  hubSubtitle: {
+    fontSize: 13,
+    color: THEME.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 18,
+    maxWidth: 310,
+  },
+  hubQrBox: {
+    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: THEME.borderRadius.lg,
+    marginBottom: 16,
+  },
+  hubIpBadge: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: THEME.colors.surfaceElevated,
+    borderRadius: THEME.borderRadius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: THEME.colors.surfaceBorder,
+  },
+  hubIpLabel: {
+    fontSize: 12,
+    color: THEME.colors.textMuted,
+    fontWeight: '600',
+  },
+  hubIpValue: {
+    fontSize: 13,
+    color: THEME.colors.textPrimary,
+    fontWeight: '800',
+  },
+  refreshIpBtn: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: THEME.colors.surfaceElevated,
+    borderColor: THEME.colors.surfaceBorderHighlight,
+    borderWidth: 1,
+    paddingVertical: 11,
+    borderRadius: THEME.borderRadius.md,
+  },
+  refreshIpText: {
+    color: THEME.colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 13,
   },
   kdsTabsWrapper: {
     backgroundColor: THEME.colors.surface,

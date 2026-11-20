@@ -66,12 +66,13 @@ const clients = new Set();
 let ordersStore = [];
 
 function broadcastClientCount() {
+  const peerCount = Math.max(0, clients.size - 1);
   const payload = JSON.stringify({
     id: `count_${Date.now()}`,
     timestamp: Date.now(),
     type: 'CLIENT_COUNT',
     payload: {
-      count: clients.size,
+      count: peerCount,
     },
   });
   for (const client of clients) {
@@ -156,9 +157,9 @@ wss.on('connection', (ws, req) => {
         }
       }
 
-      // Re-transmitir o evento em tempo real para todos os clientes conectados
+      // Re-transmitir o evento em tempo real para todos os outros clientes conectados
       for (const client of clients) {
-        if (client.readyState === WebSocket.OPEN) {
+        if (client !== ws && client.readyState === WebSocket.OPEN) {
           client.send(data.toString());
         }
       }

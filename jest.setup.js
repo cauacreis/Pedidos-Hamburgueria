@@ -1,3 +1,8 @@
+// Mock expo native module bridge
+jest.mock('expo', () => ({
+  requireOptionalNativeModule: jest.fn(() => null),
+}));
+
 // Mock NetInfo
 jest.mock('@react-native-community/netinfo', () => ({
   addEventListener: jest.fn(() => jest.fn()),

@@ -13,6 +13,11 @@ interface ConnectModalProps {
   connectedHost?: string | null;
   onConnectHost?: (host: string) => void;
   onSwitchToScanner?: () => void;
+  mode?: 'pos' | 'kds-hub';
+  isNativeHubRunning?: boolean;
+  isDiscovering?: boolean;
+  onDiscoverHub?: () => void;
+  onRefreshIp?: () => void;
 }
 
 export const ConnectModal: React.FC<ConnectModalProps> = ({
@@ -23,6 +28,11 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
   connectedHost,
   onConnectHost,
   onSwitchToScanner,
+  mode = 'pos',
+  isNativeHubRunning = false,
+  isDiscovering = false,
+  onDiscoverHub,
+  onRefreshIp,
 }) => {
   const [hubIpInput, setHubIpInput] = useState<string>(connectedHost || '192.168.43.1');
 
@@ -43,6 +53,9 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
     }
   };
 
+  const isKdsHubMode = mode === 'kds-hub';
+  const isExpoGoPosMode = mode === 'pos' && !isNativeHubRunning;
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -50,76 +63,205 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
           <ScrollView style={{ width: '100%' }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Header */}
             <View style={styles.modalHeader}>
-              <Text style={styles.title}>Conectar Cozinha (KDS)</Text>
+              <Text style={styles.title}>
+                {isKdsHubMode
+                  ? 'Conectar o Caixa'
+                  : isExpoGoPosMode
+                  ? 'Conectar à Cozinha'
+                  : 'Conectar Cozinha'}
+              </Text>
               <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={styles.closeBtn}>✕</Text>
               </TouchableOpacity>
             </View>
 
             <Text style={styles.description}>
-              Abra a tela da Cozinha no outro celular e aponte a câmera ou conecte pelo roteador local sem internet.
+              {isKdsHubMode
+                ? 'No iPhone do Caixa, conecte no Wi-Fi deste celular e aponte a câmera para o código abaixo.'
+                : isExpoGoPosMode
+                ? 'Conecte no Wi-Fi do roteador da Cozinha e escaneie o código na tela dela.'
+                : 'Abra a Cozinha no outro aparelho e aponte a câmera para o código abaixo.'}
             </Text>
 
-            {/* QR Code Container */}
-            <View style={styles.qrContainer}>
-              <QRCode
-                value={qrPayload}
-                size={180}
-                color={THEME.colors.background}
-                backgroundColor="#FFFFFF"
-                logo={require('../../assets/logo_icon.png')}
-                logoSize={40}
-                logoBackgroundColor="#FFFFFF"
-                logoMargin={2}
-                logoBorderRadius={20}
-              />
-            </View>
-
-            {/* Informações da Conexão Local */}
-            <View style={styles.infoBox}>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Endereço Local:</Text>
-                <Text style={styles.infoValue}>{localIp}:{APP_CONFIG.WEBSOCKET.DEFAULT_PORT}</Text>
-              </View>
-
-              {connectedHost ? (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Roteador/Hub:</Text>
-                  <Text style={styles.infoValue}>{connectedHost}:{APP_CONFIG.WEBSOCKET.DEFAULT_PORT}</Text>
+            {isKdsHubMode && (
+              <>
+                <View style={styles.qrContainer}>
+                  <QRCode
+                    value={qrPayload}
+                    size={180}
+                    color={THEME.colors.background}
+                    backgroundColor="#FFFFFF"
+                    logo={require('../../assets/logo_icon.png')}
+                    logoSize={40}
+                    logoBackgroundColor="#FFFFFF"
+                    logoMargin={2}
+                    logoBorderRadius={20}
+                  />
                 </View>
-              ) : null}
 
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Cozinhas Conectadas:</Text>
-                <Text style={[styles.infoValue, { color: THEME.colors.success }]}>
-                  {connectedClientsCount} dispositivo(s)
-                </Text>
-              </View>
-            </View>
+                <View style={styles.infoBox}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Endereço:</Text>
+                    <Text style={styles.infoValue}>{localIp}:{APP_CONFIG.WEBSOCKET.DEFAULT_PORT}</Text>
+                  </View>
 
-            {/* Conexão pelo Roteador / Hotspot Local */}
-            {onConnectHost && (
-              <View style={styles.hubSection}>
-                <Text style={styles.hubLabel}>IP do Roteador/Android (sem internet):</Text>
-                <TextInput
-                  style={styles.hubInput}
-                  placeholder="Ex: 192.168.43.1"
-                  placeholderTextColor={THEME.colors.textMuted}
-                  value={hubIpInput}
-                  onChangeText={setHubIpInput}
-                  keyboardType="numeric"
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity style={styles.hubBtn} onPress={handleConnectHub} activeOpacity={0.85}>
-                  <Text style={styles.hubBtnText}>Conectar ao Roteador/Hub</Text>
-                </TouchableOpacity>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Status:</Text>
+                    <Text
+                      style={[
+                        styles.infoValue,
+                        { color: connectedClientsCount > 0 ? THEME.colors.success : THEME.colors.gold },
+                      ]}
+                    >
+                      {connectedClientsCount > 0 ? 'Caixa conectado' : 'Aguardando Caixa'}
+                    </Text>
+                  </View>
+                </View>
 
-                {onSwitchToScanner && (
-                  <TouchableOpacity style={styles.scannerBtn} onPress={onSwitchToScanner} activeOpacity={0.85}>
-                    <Text style={styles.scannerBtnText}>Escanear QR da Cozinha</Text>
+                {onRefreshIp && (
+                  <TouchableOpacity style={styles.hubBtn} onPress={onRefreshIp} activeOpacity={0.85}>
+                    <Text style={styles.hubBtnText}>Atualizar endereço</Text>
                   </TouchableOpacity>
                 )}
-              </View>
+
+                {onSwitchToScanner && (
+                  <TouchableOpacity
+                    style={[styles.scannerBtn, { marginTop: 8, marginBottom: 14 }]}
+                    onPress={onSwitchToScanner}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.scannerBtnText}>Conectar a outro aparelho</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+
+            {isExpoGoPosMode && (
+              <>
+                {onSwitchToScanner && (
+                  <TouchableOpacity style={styles.primaryCtaBtn} onPress={onSwitchToScanner} activeOpacity={0.85}>
+                    <Text style={styles.primaryCtaText}>Escanear QR da Cozinha</Text>
+                  </TouchableOpacity>
+                )}
+
+                {onDiscoverHub && (
+                  <TouchableOpacity
+                    style={[styles.hubBtn, { marginBottom: 14 }, isDiscovering && { opacity: 0.65 }]}
+                    onPress={onDiscoverHub}
+                    disabled={isDiscovering}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.hubBtnText}>
+                      {isDiscovering ? 'Buscando...' : 'Buscar Cozinha na Rede'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <View style={styles.infoBox}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Cozinha:</Text>
+                    <Text
+                      style={[
+                        styles.infoValue,
+                        { color: connectedClientsCount > 0 ? THEME.colors.success : THEME.colors.gold },
+                      ]}
+                    >
+                      {connectedClientsCount > 0 ? 'Conectada' : 'Aguardando conexão'}
+                    </Text>
+                  </View>
+
+                  {connectedHost ? (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Endereço conectado:</Text>
+                      <Text style={styles.infoValue}>{connectedHost}:{APP_CONFIG.WEBSOCKET.DEFAULT_PORT}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {onConnectHost && (
+                  <View style={styles.hubSection}>
+                    <Text style={styles.hubLabel}>Ou digite o endereço exibido na Cozinha:</Text>
+                    <TextInput
+                      style={styles.hubInput}
+                      placeholder="Ex: 192.168.43.1"
+                      placeholderTextColor={THEME.colors.textMuted}
+                      value={hubIpInput}
+                      onChangeText={setHubIpInput}
+                      keyboardType="numeric"
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity style={styles.scannerBtn} onPress={handleConnectHub} activeOpacity={0.85}>
+                      <Text style={styles.scannerBtnText}>Conectar</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            )}
+
+            {!isKdsHubMode && !isExpoGoPosMode && (
+              <>
+                <View style={styles.qrContainer}>
+                  <QRCode
+                    value={qrPayload}
+                    size={180}
+                    color={THEME.colors.background}
+                    backgroundColor="#FFFFFF"
+                    logo={require('../../assets/logo_icon.png')}
+                    logoSize={40}
+                    logoBackgroundColor="#FFFFFF"
+                    logoMargin={2}
+                    logoBorderRadius={20}
+                  />
+                </View>
+
+                <View style={styles.infoBox}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Endereço Local:</Text>
+                    <Text style={styles.infoValue}>{localIp}:{APP_CONFIG.WEBSOCKET.DEFAULT_PORT}</Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Cozinhas Conectadas:</Text>
+                    <Text style={[styles.infoValue, { color: THEME.colors.success }]}>
+                      {connectedClientsCount} dispositivo(s)
+                    </Text>
+                  </View>
+                </View>
+
+                {onRefreshIp && (
+                  <TouchableOpacity
+                    style={[styles.hubBtn, { marginBottom: 10 }]}
+                    onPress={onRefreshIp}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.hubBtnText}>Atualizar endereço</Text>
+                  </TouchableOpacity>
+                )}
+
+                {onConnectHost && (
+                  <View style={styles.hubSection}>
+                    <Text style={styles.hubLabel}>Ou conectar a outro endereço:</Text>
+                    <TextInput
+                      style={styles.hubInput}
+                      placeholder="Ex: 192.168.43.1"
+                      placeholderTextColor={THEME.colors.textMuted}
+                      value={hubIpInput}
+                      onChangeText={setHubIpInput}
+                      keyboardType="numeric"
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity style={styles.scannerBtn} onPress={handleConnectHub} activeOpacity={0.85}>
+                      <Text style={styles.scannerBtnText}>Conectar</Text>
+                    </TouchableOpacity>
+
+                    {onSwitchToScanner && (
+                      <TouchableOpacity style={styles.scannerBtn} onPress={onSwitchToScanner} activeOpacity={0.85}>
+                        <Text style={styles.scannerBtnText}>Escanear QR</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </>
             )}
 
             {/* Botão Fechar */}
@@ -262,6 +404,19 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
     fontWeight: '700',
     fontSize: 13,
+  },
+  primaryCtaBtn: {
+    width: '100%',
+    backgroundColor: THEME.colors.primary,
+    paddingVertical: 13,
+    borderRadius: THEME.borderRadius.md,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  primaryCtaText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
   },
   doneBtn: {
     width: '100%',

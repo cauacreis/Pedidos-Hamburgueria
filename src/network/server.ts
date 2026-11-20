@@ -14,6 +14,7 @@ import { OrdersRepository } from '../db/ordersRepository';
 import { ServerStatus } from './types';
 import { APP_CONFIG } from '../constants/config';
 import { NetworkDiscovery } from './discovery';
+import { LocalHub } from './localHub';
 
 type ServerMessageHandler = (message: SocketMessage) => void;
 type ClientCountHandler = (count: number) => void;
@@ -145,15 +146,109 @@ export class PosWebSocketServer {
       // Fallback para ambiente móvel puro onde servidor em background usa Hub ou barramento local
     }
 
-    // Mobile / Expo Go (sem suporte a servidor TCP nativo): conecta ao Hub na rede local/Hotspot
-    try {
-      const savedHost = await AsyncStorage.getItem(APP_CONFIG.STORAGE_KEYS.LAST_SERVER_IP);
-      const targetHost = savedHost && savedHost.trim().length > 0 ? savedHost.trim() : '192.168.43.1';
-      await this.connectToHub(targetHost, this.port, false);
-    } catch {}
+    // Android nativo com LocalHub: inicia servidor embutido na porta 8080 e conecta localmente
+    if (LocalHub.isAvailable()) {
+      await LocalHub.startServer(this.port);
+      await this.connectToHub('127.0.0.1', this.port, false);
+      this.status = 'running';
+      return true;
+    }
+
+    // Mobile / Expo Go (iPhone sem módulo nativo de servidor): descobre o Hub na rede local/Hotspot
+    await this.discoverAndConnectHub();
 
     this.status = 'running';
     return true;
+  }
+
+  /**
+   * Testa em paralelo os IPs prováveis do Hub local / roteador e conecta no primeiro que responder
+   */
+  public async discoverAndConnectHub(timeoutMs: number = 2200): Promise<string | null> {
+    let savedIp: string | null = null;
+    try {
+      savedIp = await AsyncStorage.getItem(APP_CONFIG.STORAGE_KEYS.LAST_SERVER_IP);
+    } catch {}
+
+    let deviceIp: string | null = null;
+    try {
+      deviceIp = await NetworkDiscovery.getLocalIpAddress();
+    } catch {}
+
+    const rawCandidates = NetworkDiscovery.getCandidateHubIps(savedIp, deviceIp);
+    const candidates = rawCandidates.length > 0 ? rawCandidates : ['192.168.43.1'];
+
+    if (typeof WebSocket === 'undefined') {
+      this.status = 'running';
+      return null;
+    }
+
+    const winnerIp = await new Promise<string | null>((resolve) => {
+      let settled = false;
+      let pendingCount = candidates.length;
+      const probes: any[] = [];
+      let timer: ReturnType<typeof setTimeout> | null = null;
+
+      const cleanupProbes = () => {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        for (const probe of probes) {
+          probe.onopen = null;
+          probe.onerror = null;
+          probe.onclose = null;
+          try {
+            probe.close();
+          } catch {}
+        }
+      };
+
+      const finish = (ip: string | null) => {
+        if (settled) return;
+        settled = true;
+        cleanupProbes();
+        resolve(ip);
+      };
+
+      timer = setTimeout(() => {
+        finish(null);
+      }, timeoutMs);
+
+      for (const ip of candidates) {
+        try {
+          const probe = new WebSocket(`ws://${ip}:${this.port}`);
+          probes.push(probe);
+
+          probe.onopen = () => {
+            finish(ip);
+          };
+
+          const handleFail = () => {
+            pendingCount -= 1;
+            if (pendingCount <= 0) {
+              finish(null);
+            }
+          };
+
+          probe.onerror = handleFail;
+          probe.onclose = handleFail;
+        } catch {
+          pendingCount -= 1;
+          if (pendingCount <= 0) {
+            finish(null);
+          }
+        }
+      }
+    });
+
+    if (winnerIp) {
+      await this.connectToHub(winnerIp, this.port, true);
+      return winnerIp;
+    }
+
+    await this.connectToHub(candidates[0] || '192.168.43.1', this.port, false);
+    return null;
   }
 
   /**
@@ -273,6 +368,16 @@ export class PosWebSocketServer {
     if (this.hubHost && !this.intentionalHubDisconnect && this.status !== 'stopped') {
       this.hubReconnectAttempts = 0;
       void this.connectToHub(this.hubHost, this.hubPort, false);
+      return;
+    }
+    if (
+      !LocalHub.isAvailable() &&
+      Platform.OS !== 'web' &&
+      !this.intentionalHubDisconnect &&
+      this.status !== 'stopped'
+    ) {
+      this.hubReconnectAttempts = 0;
+      void this.discoverAndConnectHub();
     }
   }
 
@@ -296,7 +401,11 @@ export class PosWebSocketServer {
     this.hubReconnectTimer = setTimeout(() => {
       this.hubReconnectTimer = null;
       if (this.hubHost && !this.intentionalHubDisconnect && this.status !== 'stopped') {
-        void this.connectToHub(this.hubHost, this.hubPort, false);
+        if (!LocalHub.isAvailable() && Platform.OS !== 'web' && this.hubReconnectAttempts >= 2) {
+          void this.discoverAndConnectHub();
+        } else {
+          void this.connectToHub(this.hubHost, this.hubPort, false);
+        }
       }
     }, delay);
   }

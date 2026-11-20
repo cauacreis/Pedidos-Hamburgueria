@@ -80,8 +80,13 @@ export default function App() {
           onSelectRole={handleSelectRole}
           connectionStatus={connection.clientStatus}
           connectedClientsCount={connection.connectedClientsCount}
+          isNativeHubRunning={connection.isNativeHubRunning}
           onOpenConnectModal={() => setConnectModalVisible(true)}
-          onOpenScannerModal={() => setScannerModalVisible(true)}
+          onOpenScannerModal={() =>
+            connection.isNativeHubRunning && role === 'kds'
+              ? setConnectModalVisible(true)
+              : setScannerModalVisible(true)
+          }
         />
 
         {/* Telas Operacionais */}
@@ -107,6 +112,11 @@ export default function App() {
               connectionStatus={connection.clientStatus}
               onUpdateStatus={updateOrderStatus}
               onOpenScanner={() => setScannerModalVisible(true)}
+              isNativeHubRunning={connection.isNativeHubRunning}
+              connectedClientsCount={connection.connectedClientsCount}
+              localIp={connection.localIp}
+              connectedHost={connection.connectedHost}
+              onRefreshIp={connection.refreshLocalIp}
             />
           )}
 
@@ -120,6 +130,11 @@ export default function App() {
           localIp={connection.localIp}
           connectedClientsCount={connection.connectedClientsCount}
           connectedHost={connection.connectedHost}
+          mode={role === 'kds' && connection.isNativeHubRunning ? 'kds-hub' : 'pos'}
+          isNativeHubRunning={connection.isNativeHubRunning}
+          isDiscovering={connection.isDiscovering}
+          onDiscoverHub={connection.discoverHub}
+          onRefreshIp={connection.refreshLocalIp}
           onConnectHost={(host) => {
             connection.connectToHost(host);
           }}

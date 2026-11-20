@@ -11,6 +11,7 @@ interface HeaderProps {
   onSelectRole: (role: 'pos' | 'kds' | 'dashboard') => void;
   connectionStatus?: ConnectionStatus;
   connectedClientsCount?: number;
+  isNativeHubRunning?: boolean;
   onOpenConnectModal?: () => void;
   onOpenScannerModal?: () => void;
 }
@@ -20,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectRole,
   connectionStatus = 'disconnected',
   connectedClientsCount = 0,
+  isNativeHubRunning = false,
   onOpenConnectModal,
   onOpenScannerModal,
 }) => {
@@ -83,22 +85,41 @@ export const Header: React.FC<HeaderProps> = ({
             <TouchableOpacity
               style={[
                 styles.connectionBadge,
-                connectionStatus === 'connected'
+                isNativeHubRunning
+                  ? connectedClientsCount > 0
+                    ? styles.badgeConnected
+                    : styles.badgeWarning
+                  : connectionStatus === 'connected'
                   ? styles.badgeConnected
                   : connectionStatus === 'reconnecting' || connectionStatus === 'connecting'
                   ? styles.badgeWarning
                   : styles.badgeDisconnected,
               ]}
-              onPress={connectionStatus !== 'connected' ? onOpenScannerModal : undefined}
+              onPress={onOpenScannerModal}
               activeOpacity={0.8}
             >
-              {connectionStatus === 'connected' ? (
+              {isNativeHubRunning ? (
+                connectedClientsCount > 0 ? (
+                  <Wifi size={13} color={THEME.colors.success} style={styles.badgeIcon} />
+                ) : (
+                  <QrCode size={13} color={THEME.colors.gold} style={styles.badgeIcon} />
+                )
+              ) : connectionStatus === 'connected' ? (
                 <Wifi size={13} color={THEME.colors.success} style={styles.badgeIcon} />
               ) : (
                 <WifiOff size={13} color={THEME.colors.danger} style={styles.badgeIcon} />
               )}
-              <Text style={styles.connectionText}>
-                {connectionStatus === 'connected'
+              <Text
+                style={[
+                  styles.connectionText,
+                  isNativeHubRunning && connectedClientsCount === 0 && { color: THEME.colors.gold },
+                ]}
+              >
+                {isNativeHubRunning
+                  ? connectedClientsCount > 0
+                    ? 'Caixa conectado'
+                    : 'Mostrar QR p/ Caixa'
+                  : connectionStatus === 'connected'
                   ? 'Conectado ao Caixa'
                   : connectionStatus === 'reconnecting' || connectionStatus === 'connecting'
                   ? 'Reconectando...'
